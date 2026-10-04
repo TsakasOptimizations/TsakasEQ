@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TsakasEQ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%277%27%20fill%3D%27%231a1a1a%27/%3E%3Cpath%20d%3D%27M6.1%2018.6%20L6.9%2018.9%20L7.8%2019.5%20L8.7%2020.2%20L9.5%2020.9%20L10.4%2021.4%20L11.3%2021.4%20L12.1%2021.0%20L13.0%2020.3%20L13.8%2019.5%20L14.7%2018.6%20L15.6%2017.7%20L16.4%2016.6%20L17.3%2015.1%20L18.2%2013.5%20L19.0%2012.0%20L19.9%2011.3%20L20.7%2011.4%20L21.6%2012.5%20L22.5%2014.1%20L23.3%2015.6%20L24.2%2016.8%20L25.1%2017.6%20L25.9%2018.0%27%20fill%3D%27none%27%20stroke%3D%27%231ed760%27%20stroke-width%3D%272.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #121212; --card: #181818; --raised: #242424; --line: #2a2a2a;
+    --text: #ffffff; --sub: #b3b3b3; --dim: #8f8f8f;
+    --green: #1ed760; --green-dark: #1db954; --warn: #ffa42b; --err: #f3727f;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; user-select: none; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 28px 20px; display: flex; flex-direction: column; gap: 18px; min-height: 100%; }
+  header { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--raised); display: grid; place-items: center; }
+  h1 { font: 700 24px/1.1 "Segoe UI Variable Display", "Segoe UI", sans-serif; margin: 0; letter-spacing: -.02em; }
+  .tag { color: var(--sub); font-size: 13px; }
+  .spacer { flex: 1; }
+
+  .switch { display: flex; align-items: center; gap: 10px; color: var(--sub); font-weight: 600; cursor: pointer; background: none; border: 0; font: inherit; }
+  .switch .track { width: 44px; height: 24px; border-radius: 12px; background: #535353; position: relative; transition: background .15s; }
+  .switch .knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch[aria-checked="true"] .track { background: var(--green); }
+  .switch[aria-checked="true"] .knob { transform: translateX(20px); }
+  .switch[aria-checked="true"] span:last-child { color: var(--text); }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { border: 0; border-radius: 999px; padding: 8px 16px; background: var(--raised); color: var(--text); font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; transition: background .12s, transform .08s; }
+  .pill:hover { background: #2e2e2e; }
+  .pill:active { transform: scale(.97); }
+  .pill[aria-pressed="true"] { background: var(--text); color: #000; }
+  .pill.ghost { background: none; color: var(--sub); outline: 1px dashed #535353; outline-offset: -1px; }
+  .pill.ghost:hover { color: var(--text); }
+  .pill input { all: unset; width: 120px; }
+
+  .card { background: var(--card); border-radius: 12px; padding: 18px 18px 10px; position: relative; }
+  .card-head { display: flex; align-items: baseline; gap: 10px; margin: 0 6px 6px; }
+  .card-head h2 { font-size: 18px; margin: 0; }
+  .card-head .hint { color: var(--dim); font-size: 12px; }
+  svg { display: block; width: 100%; height: 360px; touch-action: none; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .grid.zero { stroke: #3e3e3e; }
+  .axis { fill: var(--dim); font-size: 11px; }
+  .region { fill: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .curve { fill: none; stroke: var(--green); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; transition: stroke .2s; }
+  .off .curve { stroke: #535353; }
+  .off .area { opacity: .15; }
+  .node { cursor: ns-resize; outline: none; }
+  .node circle.hit { fill: transparent; }
+  .node circle.dot { fill: #fff; stroke: var(--card); stroke-width: 3; transition: r .1s; }
+  .node:hover circle.dot, .node.active circle.dot, .node:focus-visible circle.dot { r: 10; }
+  .node:focus-visible circle.ring { stroke: var(--green); }
+  .node circle.ring { fill: none; stroke: transparent; stroke-width: 2; }
+  .flabel { fill: var(--sub); font-size: 11px; font-weight: 600; }
+  .tip rect { fill: #fff; }
+  .tip text { fill: #000; font-size: 12px; font-weight: 700; }
+
+  .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .chip { font-size: 12px; color: var(--sub); display: flex; align-items: center; gap: 6px; }
+  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .chip.dirty { color: var(--warn); }
+  .chip.dirty::before { background: var(--warn); }
+  .clip { color: var(--warn); font-size: 12px; font-weight: 600; }
+  .btn { border: 0; border-radius: 999px; padding: 11px 24px; font: 700 14px/1 inherit; font-family: inherit; cursor: pointer; transition: transform .08s, background .12s, opacity .12s; }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--green); color: #000; }
+  .btn.primary:hover { background: #3be477; }
+  .btn.primary:disabled { opacity: .35; cursor: default; transform: none; }
+  .btn.secondary { background: none; color: var(--text); box-shadow: inset 0 0 0 1px #727272; }
+  .btn.secondary:hover { box-shadow: inset 0 0 0 1px #fff; }
+  .btn.secondary:disabled { opacity: .35; cursor: default; }
+  .btn.link { background: none; color: var(--sub); padding: 8px 10px; font-weight: 600; }
+  .btn.link:hover { color: var(--text); }
+  .btn.danger { color: var(--err); }
+
+  .ai { padding: 18px 24px 20px; }
+  .ai .card-head { margin: 0 0 12px; flex-wrap: wrap; }
+  .ai-row { display: flex; gap: 10px; }
+  .ai-row input { flex: 1; min-width: 0; border: 0; border-radius: 999px; padding: 11px 18px; background: var(--raised); color: var(--text); font: inherit; user-select: text; }
+  .ai-row input::placeholder { color: var(--dim); }
+  .ai-row input:focus { outline: 2px solid var(--green); outline-offset: -2px; }
+  .ai-results:not(:empty) { margin-top: 12px; }
+  .ai-results .pill span { color: var(--sub); font-weight: 400; margin-left: 6px; }
+  .ai-msg { color: var(--sub); font-size: 13px; margin-top: 10px; }
+  .ai-msg:empty { display: none; }
+  .banner { background: #2a2416; color: #ffd18a; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+  .banner .btn { padding: 8px 16px; font-size: 13px; }
+  footer { margin-top: auto; display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 12px; flex-wrap: wrap; }
+  footer .msg { color: var(--sub); }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: grid; place-items: center; z-index: 10; }
+  .modal { background: var(--raised); border-radius: 14px; padding: 28px; width: min(460px, calc(100% - 32px)); }
+  .modal h2 { margin: 0 0 8px; font-size: 22px; }
+  .modal p { color: var(--sub); margin: 0 0 18px; }
+  .modal .err { color: var(--err); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 32 32" style="height:24px"><path d="M6.1 18.6 L6.9 18.9 L7.8 19.5 L8.7 20.2 L9.5 20.9 L10.4 21.4 L11.3 21.4 L12.1 21.0 L13.0 20.3 L13.8 19.5 L14.7 18.6 L15.6 17.7 L16.4 16.6 L17.3 15.1 L18.2 13.5 L19.0 12.0 L19.9 11.3 L20.7 11.4 L21.6 12.5 L22.5 14.1 L23.3 15.6 L24.2 16.8 L25.1 17.6 L25.9 18.0" fill="none" stroke="#1ed760" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    <div><h1>TsakasEQ</h1><div class="tag">EQ for music, movies &amp; games</div></div>
+    <div class="spacer"></div>
+    <button class="switch" id="power" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span><span>Equalizer</span></button>
+  </header>
+
+  <div class="banner" id="newdev" hidden><span id="newdevText"></span><span class="spacer"></span><button class="btn primary" data-setup>Enable</button></div>
+
+  <nav class="pills" id="pills" aria-label="Presets"></nav>
+
+  <section class="card" id="card">
+    <div class="card-head"><h2 id="title"></h2><span class="hint">Drag the dots up or down. You hear it instantly. Double-click a dot to reset it.</span><span class="spacer"></span><span class="clip" id="clip" role="status" hidden></span></div>
+    <svg id="eq" aria-label="Equalizer curve"></svg>
+  </section>
+
+  <div class="bar">
+    <span class="chip" id="chip">Applied</span>
+    <span class="spacer"></span>
+    <button class="btn link" id="restore">Restore default</button>
+    <button class="btn link danger" id="del">Delete preset</button>
+    <button class="btn secondary" id="revert">Revert</button>
+    <button class="btn primary" id="apply">Apply</button>
+  </div>
+
+  <section class="card ai">
+    <div class="card-head"><h2>AI headphone profiles</h2>
+      <span class="hint">Type your headphones or IEMs. TsakasEQ finds them in 8,800+ lab measurements (AutoEq), corrects their sound, and builds AI FPS, AI Music and AI Movies for them.</span></div>
+    <form class="ai-row" id="aiForm">
+      <input id="aiQuery" placeholder="e.g. Kiwi Ears Astral, HD 600, AirPods Pro 2" aria-label="Headphone model" autocomplete="off" maxlength="60">
+      <button class="btn primary" type="submit">Search</button>
+    </form>
+    <div class="pills ai-results" id="aiResults"></div>
+    <div class="ai-msg" id="aiMsg" role="status"></div>
+  </section>
+
+  <footer>
+    <span id="ver"></span>·<span id="devices"></span>
+    <span class="spacer"></span>
+    <span class="msg" id="umsg"></span>
+    <button class="btn primary" id="uinstall" hidden style="padding:7px 14px;font-size:12px">Update now</button>
+    <button class="btn link" id="ucheck">Check for updates</button>
+  </footer>
+</main>
+
+<div class="overlay" id="setup" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">One-time setup</h2>
+    <p id="setupText">TsakasEQ needs to switch on its audio engine so the EQ works in every app and game. Windows will ask for admin permission once.</p>
+    <button class="btn primary" data-setup>Set up</button>
+  </div>
+</div>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get('t');
+const $ = id => document.getElementById(id);
+const api = (path, body) => fetch(path, {
+  method: body ? 'POST' : 'GET',
+  headers: { 'X-Token': TOKEN, 'Content-Type': 'application/json' },
+  body: body && JSON.stringify(body),
+}).then(r => r.json());
+const clone = x => JSON.parse(JSON.stringify(x));
+
+let S, applied, work;          // server state, last applied {presets,active,on}, working copy
+const svg = $('eq');
+const FS = 48000, PAD = { l: 44, r: 22, t: 30, b: 34 }, RANGE = 12;
+
+// ---- filter math (RBJ, matches Equalizer APO) ----
+function biquad(kind, f0, g, q) {
+  const A = 10 ** (g / 40), w = 2 * Math.PI * f0 / FS, c = Math.cos(w), al = Math.sin(w) / (2 * q), s = 2 * Math.sqrt(A) * al;
+  if (kind === 'PK') return [[1 + al * A, -2 * c, 1 - al * A], [1 + al / A, -2 * c, 1 - al / A]];
+  if (kind === 'LSC') return [[A * ((A + 1) - (A - 1) * c + s), 2 * A * ((A - 1) - (A + 1) * c), A * ((A + 1) - (A - 1) * c - s)],
+                              [(A + 1) + (A - 1) * c + s, -2 * ((A - 1) + (A + 1) * c), (A + 1) + (A - 1) * c - s]];
+  return [[A * ((A + 1) + (A - 1) * c + s), -2 * A * ((A - 1) + (A + 1) * c), A * ((A + 1) + (A - 1) * c - s)],
+          [(A + 1) - (A - 1) * c + s, 2 * ((A - 1) - (A + 1) * c), (A + 1) - (A - 1) * c - s]];
+}
+function respDb(bands, f) {
+  const w = 2 * Math.PI * f / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+  let db = 0;
+  for (const [k, f0, g, q] of bands) {
+    const [b, a] = biquad(k, f0, g, q);
+    const nr = b[0] + b[1] * c1 + b[2] * c2, ni = -(b[1] * s1 + b[2] * s2);
+    const dr = a[0] + a[1] * c1 + a[2] * c2, di = -(a[1] * s1 + a[2] * s2);
+    db += 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+  }
+  return db;
+}
+
+// ---- geometry ----
+let W = 1000, H = 360;
+const x = f => PAD.l + (W - PAD.l - PAD.r) * Math.log(f / 20) / Math.log(1000);
+const y = db => PAD.t + (H - PAD.t - PAD.b) * (RANGE - Math.max(-RANGE, Math.min(RANGE, db))) / (2 * RANGE);
+const yToDb = py => RANGE - (py - PAD.t) / (H - PAD.t - PAD.b) * 2 * RANGE;
+const fmtHz = f => f >= 1000 ? `${+(f / 1000).toFixed(1)}KHz` : `${Math.round(f)}Hz`;
+const HEADROOM = 6;  // matches the fixed preamp in tsakaseq.py
+const fmtDb = g => `${g > 0 ? '+' : ''}${g.toFixed(1)} dB`;
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs = {}, parent = svg) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+};
+const bands = () => work.presets[work.active];
+
+let curve, area, nodes = [], tip, drag = null;
+
+function build() {
+  const r = svg.getBoundingClientRect();
+  W = Math.max(400, r.width); H = r.height;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = '';
+  const defs = el('defs');
+  const grad = el('linearGradient', { id: 'fill', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: '0%', 'stop-color': '#1ed760', 'stop-opacity': .45 }, grad);
+  el('stop', { offset: '100%', 'stop-color': '#1ed760', 'stop-opacity': 0 }, grad);
+
+  for (const [lo, hi, name] of [[20, 80, 'sub'], [80, 300, 'bass'], [300, 1500, 'mids'], [1500, 6000, 'footsteps · vocals'], [6000, 20000, 'detail · direction']])
+    el('text', { x: (x(lo) + x(hi)) / 2, y: 14, 'text-anchor': 'middle', class: 'region' }).textContent = name;
+  for (const db of [12, 6, 0, -6, -12]) {
+    el('line', { x1: PAD.l, x2: W - PAD.r, y1: y(db), y2: y(db), class: 'grid' + (db ? '' : ' zero') });
+    el('text', { x: PAD.l - 10, y: y(db) + 4, 'text-anchor': 'end', class: 'axis' }).textContent = db > 0 ? `+${db}` : db;
+  }
+  area = el('path', { fill: 'url(#fill)', class: 'area' });
+  curve = el('path', { class: 'curve' });
+
+  nodes = bands().map((b, i) => {
+    const g = el('g', { class: 'node', tabindex: 0, role: 'slider', 'aria-valuemin': -RANGE, 'aria-valuemax': RANGE });
+    el('circle', { r: 22, class: 'hit' }, g);
+    el('circle', { r: 14, class: 'ring' }, g);
+    el('circle', { r: 8, class: 'dot' }, g);
+    const label = el('text', { 'text-anchor': 'middle', class: 'flabel' });
+    const svgY = e => new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse()).y;
+    let startDb, startGain;  // dots ride the wave, so drag by delta, not absolute position
+    g.addEventListener('pointerdown', e => {
+      drag = i; startDb = yToDb(svgY(e)); startGain = bands()[i][2];
+      g.setPointerCapture(e.pointerId); g.classList.add('active'); e.preventDefault(); g.focus();
+    });
+    g.addEventListener('pointermove', e => {
+      if (drag === i) setGain(i, startGain + yToDb(svgY(e)) - startDb);
+    });
+    const end = () => { drag = null; g.classList.remove('active'); update(); };
+    g.addEventListener('pointerup', end);
+    g.addEventListener('lostpointercapture', end);
+    g.addEventListener('dblclick', () => setGain(i, 0));
+    g.addEventListener('keydown', e => {
+      const step = e.shiftKey ? 0.1 : 0.5;
+      const k = { ArrowUp: step, ArrowRight: step, ArrowDown: -step, ArrowLeft: -step }[e.key];
+      if (k !== undefined) { setGain(i, bands()[i][2] + k); e.preventDefault(); }
+      if (e.key === 'Home' || e.key === '0') setGain(i, 0);
+    });
+    g.addEventListener('focus', update);
+    g.addEventListener('blur', update);
+    return { g, label };
+  });
+  tip = el('g', { class: 'tip', 'pointer-events': 'none' });
+  el('rect', { rx: 6, height: 24 }, tip);
+  el('text', { y: 16 }, tip);
+  update();
+}
+
+function update() {
+  const bs = bands(), on = work.on, pts = [];
+  let peak = 0;
+  for (let i = 0; i <= 300; i++) {
+    const f = 20 * 1000 ** (i / 300), db = on ? respDb(bs, f) : 0;
+    peak = Math.max(peak, db);
+    pts.push(`${x(f).toFixed(1)},${y(db).toFixed(1)}`);
+  }
+  $('clip').hidden = peak <= HEADROOM + 0.05;
+  $('clip').textContent = `Boost +${peak.toFixed(1)} dB is over +${HEADROOM} dB: loud sounds may distort`;
+  curve.setAttribute('d', 'M' + pts.join('L'));
+  area.setAttribute('d', `M${x(20)},${H - PAD.b}L${pts.join('L')}L${x(20000)},${H - PAD.b}Z`);
+  $('card').classList.toggle('off', !on);
+
+  let shown = null;
+  nodes.forEach(({ g, label }, i) => {
+    const [, f, gain] = bs[i];
+    g.setAttribute('transform', `translate(${x(f)},${y(on ? respDb(bs, f) : 0)})`);
+    g.setAttribute('aria-valuenow', gain);
+    g.setAttribute('aria-label', `${fmtHz(f)} ${fmtDb(gain)}`);
+    label.setAttribute('x', x(f)); label.setAttribute('y', H - 10);
+    label.textContent = fmtHz(f);
+    if (drag === i || (drag === null && document.activeElement === g)) shown = i;
+  });
+  tip.style.display = shown === null ? 'none' : '';
+  if (shown !== null) {
+    const [, f, gain] = bs[shown], t = tip.querySelector('text'), r = tip.querySelector('rect');
+    t.textContent = `${fmtHz(f)}  ${fmtDb(gain)}`;
+    const w = t.getComputedTextLength() + 16;
+    r.setAttribute('width', w); t.setAttribute('x', 8);
+    const tx = Math.min(W - PAD.r - w, Math.max(PAD.l, x(f) - w / 2));
+    const ny = y(work.on ? respDb(bs, f) : 0), ty = ny > PAD.t + 40 ? ny - 40 : ny + 18;
+    tip.setAttribute('transform', `translate(${tx},${ty})`);
+  }
+  refreshBar();
+}
+
+function setGain(i, g) {
+  bands()[i][2] = Math.round(Math.max(-RANGE, Math.min(RANGE, g)) * 10) / 10;
+  update();
+  pushLive();
+}
+
+// ---- live audio: throttle to ~25 writes/s, always send the last value ----
+let liveTimer = null, livePending = false;
+function pushLive() {
+  if (liveTimer) { livePending = true; return; }
+  api('/api/live', { bands: bands(), on: work.on });
+  liveTimer = setTimeout(() => { liveTimer = null; if (livePending) { livePending = false; pushLive(); } }, 40);
+}
+
+// ---- presets / apply ----
+const dirty = () => JSON.stringify(work) !== JSON.stringify(applied);
+function refreshBar() {
+  const d = dirty(), builtin = work.active in S.defaults;
+  $('chip').textContent = d ? 'Unapplied changes (you hear them now)' : 'Applied';
+  $('chip').classList.toggle('dirty', d);
+  $('apply').disabled = $('revert').disabled = !d;
+  $('restore').hidden = !builtin || JSON.stringify(bands()) === JSON.stringify(S.defaults[work.active]);
+  $('del').hidden = builtin;
+  $('title').textContent = work.active;
+}
+
+function renderPills() {
+  const box = $('pills');
+  box.innerHTML = '';
+  for (const name of Object.keys(work.presets)) {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.textContent = name;
+    b.setAttribute('aria-pressed', name === work.active);
+    b.onclick = () => select(name);
+    box.appendChild(b);
+  }
+  const add = document.createElement('button');
+  add.className = 'pill ghost'; add.textContent = '+ Save as new';
+  add.onclick = () => {
+    add.innerHTML = '<input placeholder="Preset name" maxlength="24">';
+    const inp = add.querySelector('input');
+    inp.focus();
+    inp.onkeydown = e => {
+      if (e.key === 'Escape') renderPills();
+      if (e.key !== 'Enter') return;
+      const name = inp.value.trim();
+      if (!name || name in work.presets) return inp.select();
+      work.presets[name] = clone(bands());
+      applied.presets[name] = clone(bands());
+      work.active = name;
+      save();
+    };
+    inp.onblur = () => setTimeout(renderPills, 150);
+  };
+  box.appendChild(add);
+}
+
+function select(name) {
+  work.active = name;
+  renderPills(); build(); pushLive();
+}
+
+async function save() {
+  await api('/api/save', work);
+  applied = clone(work);
+  renderPills(); build();
+}
+
+$('apply').onclick = save;
+$('revert').onclick = () => { work = clone(applied); renderPills(); build(); pushLive(); };
+$('restore').onclick = () => { work.presets[work.active] = clone(S.defaults[work.active]); build(); pushLive(); };
+let delArmed = null;
+$('del').onclick = async () => {
+  if (!delArmed) {
+    $('del').textContent = 'Click again to delete';
+    delArmed = setTimeout(() => { delArmed = null; $('del').textContent = 'Delete preset'; }, 3000);
+    return;
+  }
+  clearTimeout(delArmed); delArmed = null; $('del').textContent = 'Delete preset';
+  delete work.presets[work.active]; delete applied.presets[work.active];
+  work.active = Object.keys(work.presets)[0];
+  if (!(applied.active in applied.presets)) applied.active = work.active;
+  await save(); pushLive();
+};
+$('power').onclick = async () => {
+  work.on = !work.on; applied.on = work.on;
+  $('power').setAttribute('aria-checked', work.on);
+  await api('/api/save', { ...applied });  // on/off sticks instantly, like Spotify
+  update(); pushLive();
+};
+
+// ---- setup + devices ----
+function showStatus(st) {
+  $('setup').hidden = st.ready;
+  $('newdev').hidden = !st.ready || !st.missing.length;
+  $('newdevText').textContent = `New audio output found: ${st.missing.join(', ')}. Enable the EQ on it?`;
+  $('devices').textContent = st.ready ? `EQ active on ${st.devices.length} output${st.devices.length === 1 ? '' : 's'}` : 'Not set up';
+  $('devices').title = st.devices.join('\n');
+}
+document.querySelectorAll('[data-setup]').forEach(b => b.onclick = async () => {
+  document.querySelectorAll('[data-setup]').forEach(x => x.disabled = true);
+  $('setupText').textContent = 'Setting up… accept the Windows admin prompt. This takes about 20 seconds.';
+  const r = await api('/api/setup', {});
+  document.querySelectorAll('[data-setup]').forEach(x => x.disabled = false);
+  showStatus(r.status);
+  if (r.error) {
+    $('setup').hidden = false;
+    $('setupText').innerHTML = '';
+    $('setupText').append(Object.assign(document.createElement('span'), { className: 'err', textContent: r.error }));
+  } else {
+    pushLive();
+    $('umsg').textContent = "Setup done. If you don't hear the EQ, restart your PC once.";
+  }
+});
+
+// ---- AI profiles (AutoEq) ----
+$('aiForm').onsubmit = async e => {
+  e.preventDefault();
+  const q = $('aiQuery').value.trim();
+  if (!q) return;
+  $('aiResults').innerHTML = '';
+  $('aiMsg').textContent = 'Searching…';
+  const r = await api('/api/autoeq?q=' + encodeURIComponent(q));
+  if (r.error) return $('aiMsg').textContent = r.error;
+  $('aiMsg').textContent = r.results.length ? 'Pick your model:' : 'Not found. Try fewer words, e.g. just the model name.';
+  for (const m of r.results) {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.textContent = m.name;
+    b.append(Object.assign(document.createElement('span'), { textContent: `measured by ${m.by}` }));
+    b.onclick = () => makeProfiles(m);
+    $('aiResults').appendChild(b);
+  }
+};
+
+async function makeProfiles(m) {
+  $('aiResults').innerHTML = '';
+  $('aiMsg').textContent = `Building profiles for ${m.name}…`;
+  const r = await api('/api/autoeq', { path: m.path });
+  if (r.error) return $('aiMsg').textContent = r.error;
+  for (const [name, bs] of Object.entries(r.presets)) {
+    work.presets[name] = clone(bs);
+    applied.presets[name] = clone(bs);
+  }
+  work.active = 'AI FPS';
+  await save(); pushLive();
+  $('aiMsg').textContent = `AI FPS, AI Music and AI Movies are now tuned for ${r.model}.`;
+}
+
+// ---- updates ----
+
+$('ucheck').onclick = async () => {
+  $('umsg').textContent = 'Checking…';
+  const r = await api('/api/update');
+  $('uinstall').hidden = !r.newer;
+  $('umsg').textContent = r.message || (r.newer ? `Version ${r.latest} is available.` : `You're up to date (${S.version}).`);
+};
+$('uinstall').onclick = async () => {
+  $('uinstall').disabled = true;
+  $('umsg').textContent = 'Downloading update… the app will restart.';
+  const r = await api('/api/update', {});
+  if (r.error) { $('umsg').textContent = r.error; $('uinstall').disabled = false; }
+};
+
+// ---- boot ----
+(async () => {
+  S = await api('/api/state');
+  applied = { presets: S.presets, active: S.active, on: S.on };
+  work = clone(applied);
+  $('ver').textContent = `TsakasEQ v${S.version}`;
+  if (S.ai_model && 'AI FPS' in S.presets) $('aiMsg').textContent = `AI profiles are tuned for ${S.ai_model}.`;
+  $('power').setAttribute('aria-checked', work.on);
+  showStatus(S.status);
+  renderPills(); build();
+  new ResizeObserver(() => build()).observe(svg);
+})();
+</script>
+</body>
+</html>
