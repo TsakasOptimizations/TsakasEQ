@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
@@ -84,11 +84,14 @@ def response_db(bands, f, fs=FS):
 HEADROOM = 6.0  # fixed preamp: volume stays put while dragging; boosts above +6 dB can clip (UI warns)
 
 
-def config_text(bands, on=True):
-    if not on or not bands:  # keep the same preamp so EQ on/off is a fair, level-matched comparison
-        return f"# TsakasEQ: bypass\nPreamp: {-HEADROOM:.1f} dB\n"
-    lines = ["# TsakasEQ (written by the app, edits get overwritten)", f"Preamp: {-HEADROOM:.1f} dB"]
-    lines += [f"Filter: ON {k} Fc {f:.0f} Hz Gain {g:.1f} dB Q {q:.2f}" for k, f, g, q in bands]
+def config_text(bands, on=True, outputs=None):
+    """outputs: endpoint GUIDs the EQ applies to (APO's Device command); None = every output."""
+    lines = ["# TsakasEQ (written by the app, edits get overwritten)"]
+    if outputs:
+        lines.append("Device: " + "; ".join(outputs))
+    lines.append(f"Preamp: {-HEADROOM:.1f} dB")  # also when off: on/off stays a level-matched comparison
+    if on:
+        lines += [f"Filter: ON {k} Fc {f:.0f} Hz Gain {g:.1f} dB Q {q:.2f}" for k, f, g, q in bands]
     return "\n".join(lines) + "\n"
 
 
@@ -276,7 +279,8 @@ def status():
         linked = OUR_CONFIG in (cfg / "config.txt").read_text(encoding="utf-8-sig", errors="ignore")
     except OSError:
         linked = False
-    return {"ready": linked, "missing": [n for _, n, h in devices if not h], "devices": [n for _, n, h in devices if h]}
+    return {"ready": linked, "missing": [n for _, n, h in devices if not h],
+            "devices": [{"guid": g, "name": n} for g, n, h in devices if h]}
 
 
 # ---------------------------------------------------------------- state + updates
@@ -301,6 +305,7 @@ def load_state():
             s["active"] = new
     s["presets"] = {**{k: s["presets"][k] for k in BUILTIN}, **s["presets"]}  # built-ins first, in order
     s.setdefault("on", True)
+    s.setdefault("outputs", None)
     if s["active"] not in s["presets"]:
         s["active"] = next(iter(s["presets"]))
     return s
@@ -316,7 +321,8 @@ def write_eq(bands, on):
     if not cfg:
         return False
     with write_lock:
-        (cfg / OUR_CONFIG).write_text(config_text(bands, on), encoding="utf-8")
+        outputs = state.get("outputs") if state else None
+        (cfg / OUR_CONFIG).write_text(config_text(bands, on, outputs), encoding="utf-8")
     return True
 
 
@@ -472,7 +478,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/live":  # what you hear while dragging, not saved
             return self.send(200, {"ok": write_eq(body["bands"], body["on"])})
         if self.path == "/api/save":  # Apply
-            state.update(presets=body["presets"], active=body["active"], on=body["on"])
+            state.update(presets=body["presets"], active=body["active"], on=body["on"],
+                         outputs=body.get("outputs") or None)
             save_state(state)
             return self.send(200, {"ok": write_eq(state["presets"][state["active"]], state["on"])})
         if self.path == "/api/autoeq":
@@ -548,7 +555,10 @@ def selftest():
     t = config_text([["PK", 1000, 6.0, 1.0]])
     assert config_text([["PK", 1000, -3.0, 1.0]]).count("Preamp: -6.0 dB") == 1
     assert "Preamp: -6.0 dB" in t and "Filter: ON PK Fc 1000 Hz Gain 6.0 dB Q 1.00" in t, t
-    assert config_text([["PK", 1000, 6, 1]], on=False).startswith("# TsakasEQ: bypass")
+    off = config_text([["PK", 1000, 6, 1]], on=False)
+    assert "Filter" not in off and "Preamp: -6.0 dB" in off
+    assert "Device" not in t
+    assert "Device: {a}; {b}\n" in config_text([["PK", 1000, 6, 1]], outputs=["{a}", "{b}"])
     assert vtuple("v1.10.0") > vtuple("1.9.3")
     assert all(abs(g) < 1e-6 for g in fit_six([0] * 6))
     fitted = fit_six([3, -2, 0, 1, 4, 2])

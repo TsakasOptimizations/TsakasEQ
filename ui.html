@@ -30,6 +30,11 @@
   .switch[aria-checked="true"] span:last-child { color: var(--text); }
 
   .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .outputs { align-items: center; }
+  .outputs .label { color: var(--sub); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-right: 4px; }
+  .outputs .pill { font-weight: 600; }
+  .outputs .pill span { font-weight: 400; opacity: .7; margin-left: 6px; }
+  .outputs .pill[aria-pressed="true"] { background: var(--accent); color: #000; }
   .pill { border: 0; border-radius: 999px; padding: 8px 16px; background: var(--raised); color: var(--text); font: 600 13px/1 inherit; font-family: inherit; cursor: pointer; transition: background .12s, transform .08s; }
   .pill:hover { background: #2e2e2e; }
   .pill:active { transform: scale(.97); }
@@ -112,6 +117,8 @@
   </header>
 
   <div class="banner" id="newdev" hidden><span id="newdevText"></span><span class="spacer"></span><button class="btn primary" data-setup>Enable</button></div>
+
+  <div class="pills outputs" id="outputs" role="group" aria-label="Output devices" hidden><span class="label">EQ on</span></div>
 
   <nav class="pills" id="pills" aria-label="Presets"></nav>
 
@@ -398,6 +405,37 @@ function showStatus(st) {
   $('setup').hidden = st.ready;
   $('newdev').hidden = !st.ready || !st.missing.length;
   $('newdevText').textContent = `New audio output found: ${st.missing.join(', ')}. Enable the EQ on it?`;
+  devices = st.devices || [];
+  renderOutputs();
+}
+
+// ---- output devices: which ones get the EQ (null = all) ----
+let devices = [];
+const outputOn = g => !work.outputs || work.outputs.includes(g);
+function renderOutputs() {
+  const box = $('outputs');
+  box.hidden = !devices.length;
+  box.querySelectorAll('.pill').forEach(b => b.remove());
+  for (const d of devices) {
+    const [, conn, dev] = d.name.match(/^(.*?) \((.*)\)$/) || [, d.name, ''];
+    const b = document.createElement('button');
+    b.className = 'pill'; b.textContent = conn;
+    if (dev) b.append(Object.assign(document.createElement('span'), { textContent: dev }));
+    b.title = d.name;
+    b.setAttribute('aria-pressed', outputOn(d.guid));
+    b.onclick = () => toggleOutput(d.guid);
+    box.appendChild(b);
+  }
+}
+async function toggleOutput(g) {
+  let sel = devices.map(d => d.guid).filter(outputOn);
+  sel = sel.includes(g) ? sel.filter(x => x !== g) : [...sel, g];
+  if (!sel.length) return;  // keep at least one output
+  const outputs = sel.length === devices.length ? null : sel;
+  work.outputs = applied.outputs = outputs;  // like on/off: sticks instantly
+  renderOutputs();
+  await api('/api/save', { ...applied });
+  pushLive();
 }
 document.querySelectorAll('[data-setup]').forEach(b => b.onclick = async () => {
   document.querySelectorAll('[data-setup]').forEach(x => x.disabled = true);
@@ -466,7 +504,7 @@ $('uinstall').onclick = async () => {
 // ---- boot ----
 (async () => {
   S = await api('/api/state');
-  applied = { presets: S.presets, active: S.active, on: S.on };
+  applied = { presets: S.presets, active: S.active, on: S.on, outputs: S.outputs };
   work = clone(applied);
   $('ver').textContent = `TsakasEQ v${S.version}`;
   if (S.ai_model && 'AI FPS' in S.presets) $('aiMsg').textContent = `AI profiles are tuned for ${S.ai_model}.`;
