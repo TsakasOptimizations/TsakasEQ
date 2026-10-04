@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "1.1.1"
+VERSION = "2.0.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"

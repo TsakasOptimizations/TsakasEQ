@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TsakasEQ</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%277%27%20fill%3D%27%231a1a1a%27/%3E%3Cpath%20d%3D%27M6.1%2018.6%20L6.9%2018.9%20L7.8%2019.5%20L8.7%2020.2%20L9.5%2020.9%20L10.4%2021.4%20L11.3%2021.4%20L12.1%2021.0%20L13.0%2020.3%20L13.8%2019.5%20L14.7%2018.6%20L15.6%2017.7%20L16.4%2016.6%20L17.3%2015.1%20L18.2%2013.5%20L19.0%2012.0%20L19.9%2011.3%20L20.7%2011.4%20L21.6%2012.5%20L22.5%2014.1%20L23.3%2015.6%20L24.2%2016.8%20L25.1%2017.6%20L25.9%2018.0%27%20fill%3D%27none%27%20stroke%3D%27%231ed760%27%20stroke-width%3D%272.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%277%27%20fill%3D%27%231a1a1a%27/%3E%3Cpath%20d%3D%27M6.1%2018.6%20L6.9%2018.9%20L7.8%2019.5%20L8.7%2020.2%20L9.5%2020.9%20L10.4%2021.4%20L11.3%2021.4%20L12.1%2021.0%20L13.0%2020.3%20L13.8%2019.5%20L14.7%2018.6%20L15.6%2017.7%20L16.4%2016.6%20L17.3%2015.1%20L18.2%2013.5%20L19.0%2012.0%20L19.9%2011.3%20L20.7%2011.4%20L21.6%2012.5%20L22.5%2014.1%20L23.3%2015.6%20L24.2%2016.8%20L25.1%2017.6%20L25.9%2018.0%27%20fill%3D%27none%27%20stroke%3D%27%234c9eff%27%20stroke-width%3D%272.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #121212; --card: #181818; --raised: #242424; --line: #2a2a2a;
     --text: #ffffff; --sub: #b3b3b3; --dim: #8f8f8f;
-    --green: #1ed760; --green-dark: #1db954; --warn: #ffa42b; --err: #f3727f;
+    --accent: #4c9eff; --accent-dark: #2f7fe0; --warn: #ffa42b; --err: #f3727f;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -25,7 +25,7 @@
   .switch { display: flex; align-items: center; gap: 10px; color: var(--sub); font-weight: 600; cursor: pointer; background: none; border: 0; font: inherit; }
   .switch .track { width: 44px; height: 24px; border-radius: 12px; background: #535353; position: relative; transition: background .15s; }
   .switch .knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
-  .switch[aria-checked="true"] .track { background: var(--green); }
+  .switch[aria-checked="true"] .track { background: var(--accent); }
   .switch[aria-checked="true"] .knob { transform: translateX(20px); }
   .switch[aria-checked="true"] span:last-child { color: var(--text); }
 
@@ -47,14 +47,14 @@
   .grid.zero { stroke: #3e3e3e; }
   .axis { fill: var(--dim); font-size: 11px; }
   .region { fill: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
-  .curve { fill: none; stroke: var(--green); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; transition: stroke .2s; }
+  .curve { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; transition: stroke .2s; }
   .off .curve { stroke: #535353; }
   .off .area { opacity: .15; }
   .node { cursor: ns-resize; outline: none; }
   .node circle.hit { fill: transparent; }
   .node circle.dot { fill: #fff; stroke: var(--card); stroke-width: 3; transition: r .1s; }
   .node:hover circle.dot, .node.active circle.dot, .node:focus-visible circle.dot { r: 10; }
-  .node:focus-visible circle.ring { stroke: var(--green); }
+  .node:focus-visible circle.ring { stroke: var(--accent); }
   .node circle.ring { fill: none; stroke: transparent; stroke-width: 2; }
   .flabel { fill: var(--sub); font-size: 11px; font-weight: 600; }
   .tip rect { fill: #fff; }
@@ -62,14 +62,14 @@
 
   .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .chip { font-size: 12px; color: var(--sub); display: flex; align-items: center; gap: 6px; }
-  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
   .chip.dirty { color: var(--warn); }
   .chip.dirty::before { background: var(--warn); }
   .clip { color: var(--warn); font-size: 12px; font-weight: 600; }
   .btn { border: 0; border-radius: 999px; padding: 11px 24px; font: 700 14px/1 inherit; font-family: inherit; cursor: pointer; transition: transform .08s, background .12s, opacity .12s; }
   .btn:active { transform: scale(.97); }
-  .btn.primary { background: var(--green); color: #000; }
-  .btn.primary:hover { background: #3be477; }
+  .btn.primary { background: var(--accent); color: #000; }
+  .btn.primary:hover { background: #74b4ff; }
   .btn.primary:disabled { opacity: .35; cursor: default; transform: none; }
   .btn.secondary { background: none; color: var(--text); box-shadow: inset 0 0 0 1px #727272; }
   .btn.secondary:hover { box-shadow: inset 0 0 0 1px #fff; }
@@ -83,7 +83,7 @@
   .ai-row { display: flex; gap: 10px; }
   .ai-row input { flex: 1; min-width: 0; border: 0; border-radius: 999px; padding: 11px 18px; background: var(--raised); color: var(--text); font: inherit; user-select: text; }
   .ai-row input::placeholder { color: var(--dim); }
-  .ai-row input:focus { outline: 2px solid var(--green); outline-offset: -2px; }
+  .ai-row input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
   .ai-results:not(:empty) { margin-top: 12px; }
   .ai-results .pill span { color: var(--sub); font-weight: 400; margin-left: 6px; }
   .ai-msg { color: var(--sub); font-size: 13px; margin-top: 10px; }
@@ -105,7 +105,7 @@
 <body>
 <main>
   <header>
-    <div class="logo" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 32 32" style="height:24px"><path d="M6.1 18.6 L6.9 18.9 L7.8 19.5 L8.7 20.2 L9.5 20.9 L10.4 21.4 L11.3 21.4 L12.1 21.0 L13.0 20.3 L13.8 19.5 L14.7 18.6 L15.6 17.7 L16.4 16.6 L17.3 15.1 L18.2 13.5 L19.0 12.0 L19.9 11.3 L20.7 11.4 L21.6 12.5 L22.5 14.1 L23.3 15.6 L24.2 16.8 L25.1 17.6 L25.9 18.0" fill="none" stroke="#1ed760" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+    <div class="logo" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 32 32" style="height:24px"><path d="M6.1 18.6 L6.9 18.9 L7.8 19.5 L8.7 20.2 L9.5 20.9 L10.4 21.4 L11.3 21.4 L12.1 21.0 L13.0 20.3 L13.8 19.5 L14.7 18.6 L15.6 17.7 L16.4 16.6 L17.3 15.1 L18.2 13.5 L19.0 12.0 L19.9 11.3 L20.7 11.4 L21.6 12.5 L22.5 14.1 L23.3 15.6 L24.2 16.8 L25.1 17.6 L25.9 18.0" fill="none" stroke="#4c9eff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
     <div><h1>TsakasEQ</h1><div class="tag">EQ for music, movies &amp; games</div></div>
     <div class="spacer"></div>
     <button class="switch" id="power" role="switch" aria-checked="true"><span class="track"><span class="knob"></span></span><span>Equalizer</span></button>
@@ -133,7 +133,7 @@
     <div class="card-head"><h2>AI headphone profiles</h2>
       <span class="hint">Type your headphones or IEMs. TsakasEQ finds them in 8,800+ lab measurements (AutoEq), corrects their sound, and builds AI FPS, AI Music and AI Movies for them.</span></div>
     <form class="ai-row" id="aiForm">
-      <input id="aiQuery" placeholder="e.g. Kiwi Ears Astral, HD 600, AirPods Pro 2" aria-label="Headphone model" autocomplete="off" maxlength="60">
+      <input id="aiQuery" placeholder="e.g. Sony WH-1000XM5, AirPods Pro 2, HyperX Cloud II" aria-label="Headphone model" autocomplete="off" maxlength="60">
       <button class="btn primary" type="submit">Search</button>
     </form>
     <div class="pills ai-results" id="aiResults"></div>
@@ -141,7 +141,7 @@
   </section>
 
   <footer>
-    <span id="ver"></span>·<span id="devices"></span>
+    <span id="ver"></span>
     <span class="spacer"></span>
     <span class="msg" id="umsg"></span>
     <button class="btn primary" id="uinstall" hidden style="padding:7px 14px;font-size:12px">Update now</button>
@@ -218,8 +218,8 @@ function build() {
   svg.innerHTML = '';
   const defs = el('defs');
   const grad = el('linearGradient', { id: 'fill', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: '0%', 'stop-color': '#1ed760', 'stop-opacity': .45 }, grad);
-  el('stop', { offset: '100%', 'stop-color': '#1ed760', 'stop-opacity': 0 }, grad);
+  el('stop', { offset: '0%', 'stop-color': '#4c9eff', 'stop-opacity': .45 }, grad);
+  el('stop', { offset: '100%', 'stop-color': '#4c9eff', 'stop-opacity': 0 }, grad);
 
   for (const [lo, hi, name] of [[20, 80, 'sub'], [80, 300, 'bass'], [300, 1500, 'mids'], [1500, 6000, 'footsteps · vocals'], [6000, 20000, 'detail · direction']])
     el('text', { x: (x(lo) + x(hi)) / 2, y: 14, 'text-anchor': 'middle', class: 'region' }).textContent = name;
@@ -339,7 +339,7 @@ function renderPills() {
     box.appendChild(b);
   }
   const add = document.createElement('button');
-  add.className = 'pill ghost'; add.textContent = '+ Save as new';
+  add.className = 'pill ghost'; add.textContent = '+ Create new';
   add.onclick = () => {
     add.innerHTML = '<input placeholder="Preset name" maxlength="24">';
     const inp = add.querySelector('input');
@@ -398,8 +398,6 @@ function showStatus(st) {
   $('setup').hidden = st.ready;
   $('newdev').hidden = !st.ready || !st.missing.length;
   $('newdevText').textContent = `New audio output found: ${st.missing.join(', ')}. Enable the EQ on it?`;
-  $('devices').textContent = st.ready ? `EQ active on ${st.devices.length} output${st.devices.length === 1 ? '' : 's'}` : 'Not set up';
-  $('devices').title = st.devices.join('\n');
 }
 document.querySelectorAll('[data-setup]').forEach(b => b.onclick = async () => {
   document.querySelectorAll('[data-setup]').forEach(x => x.disabled = true);
