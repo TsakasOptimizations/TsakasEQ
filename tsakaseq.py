@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
@@ -33,6 +33,9 @@ DATA = Path(os.environ["APPDATA"]) / "TsakasEQ"
 STATE = DATA / "state.json"
 OUR_CONFIG = "tsakaseq.txt"
 NO_WINDOW = 0x08000000
+# Relaunching our own exe must not inherit PyInstaller's internal vars, or the new process thinks it is
+# our onefile child and fails its parent check ("Security validation failure ...").
+FRESH_ENV = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
 FS = 48000
 FREQS = [20 * 1000 ** (i / 239) for i in range(240)]
 
@@ -251,7 +254,7 @@ def run_setup_elevated():
     arglist = ",".join(f"'{a}'" for a in args)
     r = subprocess.run(["powershell", "-NoProfile", "-Command",
                         f"Start-Process -FilePath '{exe}' -ArgumentList {arglist} -Verb RunAs -Wait -WindowStyle Hidden"],
-                       capture_output=True, text=True, creationflags=NO_WINDOW)
+                       capture_output=True, text=True, creationflags=NO_WINDOW, env=FRESH_ENV)
     if not log.exists():
         return "Setup was cancelled (admin permission is needed once)." if r.returncode else "Setup did not run."
     result = log.read_text(encoding="utf-8")
@@ -353,7 +356,7 @@ def install_update():
     bat.write_text(f'@echo off\nset n=0\n:retry\ntimeout /t 1 /nobreak >nul\nset /a n+=1\n'
                    f'move /y "{new}" "{me}" >nul 2>&1 || if %n% lss 30 goto retry\n'
                    f'start "" "{me}"\ndel "%~f0"\n', encoding="utf-8")
-    subprocess.Popen(["cmd", "/c", str(bat)], creationflags=NO_WINDOW | 0x00000008)  # DETACHED_PROCESS
+    subprocess.Popen(["cmd", "/c", str(bat)], creationflags=NO_WINDOW | 0x00000008, env=FRESH_ENV)  # DETACHED_PROCESS
 
 
 # ---------------------------------------------------------------- AI profiles from AutoEq lab measurements
