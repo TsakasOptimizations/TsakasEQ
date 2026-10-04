@@ -2,7 +2,7 @@
 
 System-wide EQ for Windows, for any headphones, IEMs or speakers. Works in every app and game (Valorant, Spotify, Netflix…).
 
-- Spotify-style curve: drag the dots up/down, you hear it instantly
+- Curve Style: drag the dots up/down, you hear it instantly
 - **Apply** keeps it; closing without Apply goes back to the last applied sound
 - Presets: **FPS Games** (footsteps/utility/direction), **Music**, **Movies**, **Flat**, plus your own
 - **AI headphone profiles**: type your headphones/IEMs, TsakasEQ finds them in 8,800+ lab measurements ([AutoEq](https://github.com/jaakkopasanen/AutoEq)), corrects their sound and builds **AI FPS**, **AI Music** and **AI Movies**
