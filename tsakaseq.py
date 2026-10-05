@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "2.1.0"
+VERSION = "2.3.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
@@ -457,7 +457,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authed():
             return
         if self.path == "/api/state":
-            return self.send(200, {**state, "defaults": BUILTIN, "version": VERSION, "status": status()})
+            return self.send(200, {**state, "defaults": BUILTIN, "version": VERSION, "status": status(),
+                                   "startup": startup_enabled(), "can_startup": FROZEN})
         if self.path == "/api/update":
             try:
                 return self.send(200, check_update())
@@ -490,6 +491,12 @@ class Handler(BaseHTTPRequestHandler):
             state["ai_model"] = model
             save_state(state)
             return self.send(200, {"model": model, "presets": presets})
+        if self.path == "/api/startup":
+            try:
+                set_startup(bool(body["on"]))
+            except (OSError, RuntimeError) as e:
+                return self.send(200, {"on": startup_enabled(), "error": str(e)})
+            return self.send(200, {"on": startup_enabled()})
         if self.path == "/api/setup":
             err = run_setup_elevated()
             if not err:
@@ -514,6 +521,30 @@ def shutdown():
     os._exit(0)
 
 
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+FROZEN = getattr(sys, "frozen", False)
+
+
+def startup_enabled():
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+            winreg.QueryValueEx(k, "TsakasEQ")
+        return True
+    except OSError:
+        return False
+
+
+def set_startup(on):
+    """Per-user Run entry (no admin), like Discord/Steam. Only the exe can register itself."""
+    if not FROZEN:
+        raise RuntimeError("Open at startup only works from the .exe")
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
+        if on:
+            winreg.SetValueEx(k, "TsakasEQ", 0, winreg.REG_SZ, f'"{sys.executable}"')
+        elif startup_enabled():
+            winreg.DeleteValue(k, "TsakasEQ")
+
+
 def find_edge():
     for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
         if base and (p := Path(base) / "Microsoft" / "Edge" / "Application" / "msedge.exe").exists():
@@ -531,6 +562,8 @@ def main():
     if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
         return
     state = load_state()
+    if FROZEN and startup_enabled():
+        set_startup(True)  # keep the entry pointing here if the exe was moved
     if status()["ready"]:
         write_eq(state["presets"][state["active"]], state["on"])
     srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
