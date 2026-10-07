@@ -19,14 +19,6 @@ Windows SmartScreen may warn because the exe isn't code-signed: **More info → 
 
 Settings → Apps → uninstall **Equalizer APO** (restores your audio devices), then delete `TsakasEQ.exe` and `%APPDATA%\TsakasEQ`.
 
-## Build
-
-```powershell
-pip install pyinstaller
-.\build.ps1        # outputs dist\TsakasEQ.exe
-```
-
-Release: bump `VERSION` in `tsakaseq.py`, build, create a GitHub release tagged `vX.Y.Z` with `TsakasEQ.exe` attached. The app's update button picks it up.
 
 ## Credits
 
