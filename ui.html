@@ -151,6 +151,7 @@
   .modal h2 { margin: 0 0 8px; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
   .modal p { color: var(--sub); margin: 0 0 18px; }
   .modal .err { color: var(--err); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
   /* staggered load-in */
   .rise { opacity: 0; transform: translateY(8px); animation: rise .6s var(--ease) forwards; animation-delay: calc(var(--i, 0) * 70ms); }
@@ -223,6 +224,17 @@
     <button class="btn link" id="ucheck">Check for updates</button>
   </footer>
 </main>
+
+<div class="overlay" id="updatePrompt" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="updateTitle" aria-describedby="updateText">
+    <h2 id="updateTitle">Update available</h2>
+    <p id="updateText"></p>
+    <div class="modal-actions">
+      <button class="btn secondary" id="updateLater">Not now</button>
+      <button class="btn primary" id="updateNow">Update now</button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="setup" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
@@ -580,6 +592,30 @@ $('uinstall').onclick = async () => {
   if (r.error) { $('umsg').textContent = r.error; $('uinstall').disabled = false; }
 };
 
+// on launch: quiet check, small prompt only when a newer release exists
+async function promptUpdate() {
+  const r = await api('/api/update').catch(() => null);
+  if (!r || !r.newer || !$('setup').hidden) return;  // offline, up to date, or setup comes first
+  $('updateText').textContent = `TsakasEQ ${r.latest} is ready. You have ${S.version}. Updating takes a few seconds and restarts the app.`;
+  $('updatePrompt').hidden = false;
+  $('updateNow').focus();
+}
+$('updateLater').onclick = () => {
+  $('updatePrompt').hidden = true;
+  $('uinstall').hidden = false;  // still reachable from the footer this session
+  $('umsg').textContent = 'Update available.';
+};
+$('updateNow').onclick = async () => {
+  $('updateNow').disabled = $('updateLater').disabled = true;
+  $('updateText').textContent = 'Downloading update… the app will restart.';
+  const r = await api('/api/update', {});
+  if (r.error) {
+    $('updateText').textContent = r.error;
+    $('updateNow').disabled = $('updateLater').disabled = false;
+  }
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('updatePrompt').hidden) $('updateLater').click(); });
+
 // ---- boot ----
 (async () => {
   S = await api('/api/state');
@@ -594,6 +630,7 @@ $('uinstall').onclick = async () => {
   showStatus(S.status);
   renderPills(); build();
   new ResizeObserver(() => build()).observe(svg);
+  promptUpdate();
 })();
 </script>
 </body>
