@@ -217,6 +217,7 @@
 
   <footer>
     <span id="ver"></span>
+    <button class="switch small" id="autovol" role="switch" aria-checked="false" title="Lower the volume only as much as the preset needs, instead of a fixed 6 dB"><span class="track"><span class="knob"></span></span><span>Auto volume</span></button>
     <button class="switch small" id="startup" role="switch" aria-checked="false"><span class="track"><span class="knob"></span></span><span>Open at startup</span></button>
     <span class="spacer"></span>
     <span class="msg" id="umsg"></span>
@@ -285,7 +286,7 @@ const x = f => PAD.l + (W - PAD.l - PAD.r) * Math.log(f / 20) / Math.log(1000);
 const y = db => PAD.t + (H - PAD.t - PAD.b) * (RANGE - Math.max(-RANGE, Math.min(RANGE, db))) / (2 * RANGE);
 const yToDb = py => RANGE - (py - PAD.t) / (H - PAD.t - PAD.b) * 2 * RANGE;
 const fmtHz = f => f >= 1000 ? `${+(f / 1000).toFixed(1)}KHz` : `${Math.round(f)}Hz`;
-const HEADROOM = 6;  // matches the fixed preamp in tsakaseq.py
+let headroom = 6;  // dB the app currently lowers everything by (fixed 6, or Auto volume's level)
 const fmtDb = g => `${g > 0 ? '+' : ''}${g.toFixed(1)} dB`;
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs = {}, parent = svg) => {
@@ -360,8 +361,10 @@ function update() {
     peak = Math.max(peak, db);
     pts.push(`${x(f).toFixed(1)},${y(db).toFixed(1)}`);
   }
-  $('clip').hidden = peak <= HEADROOM + 0.05;
-  $('clip').textContent = `Boost +${peak.toFixed(1)} dB is over +${HEADROOM} dB: loud sounds may distort`;
+  $('clip').hidden = peak <= headroom + 0.05;
+  $('clip').textContent = S.auto_volume
+    ? `Boost +${peak.toFixed(1)} dB is over the current level (+${headroom}): press Apply to re-level`
+    : `Boost +${peak.toFixed(1)} dB is over +${headroom} dB: loud sounds may distort`;
   curve.setAttribute('d', 'M' + pts.join('L'));
   area.setAttribute('d', `M${x(20)},${H - PAD.b}L${pts.join('L')}L${x(20000)},${H - PAD.b}Z`);
   $('card').classList.toggle('off', !on);
@@ -396,10 +399,14 @@ function setGain(i, g) {
 }
 
 // ---- live audio: throttle to ~25 writes/s, always send the last value ----
-let liveTimer = null, livePending = false;
-function pushLive() {
+// settle = re-level the volume (preset switch, revert, Apply); plain drags never move the volume
+let liveTimer = null, livePending = false, settlePending = false;
+function setHeadroom(h) { if (h !== undefined && h !== headroom) { headroom = h; update(); } }
+function pushLive(settle = false) {
+  settlePending = settlePending || settle;
   if (liveTimer) { livePending = true; return; }
-  api('/api/live', { bands: bands(), on: work.on });
+  const s = settlePending; settlePending = false;
+  api('/api/live', { bands: bands(), on: work.on, settle: s }).then(r => setHeadroom(r.headroom));
   liveTimer = setTimeout(() => { liveTimer = null; if (livePending) { livePending = false; pushLive(); } }, 40);
 }
 
@@ -448,18 +455,18 @@ function renderPills() {
 
 function select(name) {
   work.active = name;
-  renderPills(); build(); pushLive();
+  renderPills(); build(); pushLive(true);
 }
 
 async function save() {
-  await api('/api/save', work);
+  setHeadroom((await api('/api/save', work)).headroom);
   applied = clone(work);
   renderPills(); build();
 }
 
 $('apply').onclick = save;
-$('revert').onclick = () => { work = clone(applied); renderPills(); build(); pushLive(); };
-$('restore').onclick = () => { work.presets[work.active] = clone(S.defaults[work.active]); build(); pushLive(); };
+$('revert').onclick = () => { work = clone(applied); renderPills(); build(); pushLive(true); };
+$('restore').onclick = () => { work.presets[work.active] = clone(S.defaults[work.active]); build(); pushLive(true); };
 let delArmed = null;
 $('del').onclick = async () => {
   if (!delArmed) {
@@ -471,7 +478,13 @@ $('del').onclick = async () => {
   delete work.presets[work.active]; delete applied.presets[work.active];
   work.active = Object.keys(work.presets)[0];
   if (!(applied.active in applied.presets)) applied.active = work.active;
-  await save(); pushLive();
+  await save(); pushLive(true);
+};
+$('autovol').onclick = async () => {
+  const r = await api('/api/autovolume', { on: !S.auto_volume });
+  S.auto_volume = r.on;
+  $('autovol').setAttribute('aria-checked', r.on);
+  pushLive(true);
 };
 $('startup').onclick = async () => {
   const want = $('startup').getAttribute('aria-checked') !== 'true';
@@ -483,7 +496,7 @@ $('power').onclick = async () => {
   work.on = !work.on; applied.on = work.on;
   $('power').setAttribute('aria-checked', work.on);
   await api('/api/save', { ...applied });  // on/off sticks instantly, like Spotify
-  update(); pushLive();
+  update(); pushLive(true);
 };
 
 // ---- setup + devices ----
@@ -534,7 +547,7 @@ document.querySelectorAll('[data-setup]').forEach(b => b.onclick = async () => {
     $('setupText').innerHTML = '';
     $('setupText').append(Object.assign(document.createElement('span'), { className: 'err', textContent: r.error }));
   } else {
-    pushLive();
+    pushLive(true);
     $('umsg').textContent = "Setup done. If you don't hear the EQ, restart your PC once.";
   }
 });
@@ -573,7 +586,7 @@ async function makeProfiles(m) {
     applied.presets[name] = clone(bs);
   }
   work.active = 'AI FPS';
-  await save(); pushLive();
+  await save(); pushLive(true);
   $('aiMsg').textContent = `AI FPS, AI Music and AI Movies are now tuned for ${r.model}.`;
 }
 
@@ -623,6 +636,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('update
   work = clone(applied);
   $('ver').textContent = `TsakasEQ v${S.version}`;
   $('startup').setAttribute('aria-checked', S.startup);
+  $('autovol').setAttribute('aria-checked', !!S.auto_volume);
+  headroom = S.headroom;
   $('startup').disabled = !S.can_startup;
   if (!S.can_startup) $('startup').title = 'Only available in TsakasEQ.exe';
   if (S.ai_model && 'AI FPS' in S.presets) $('aiMsg').textContent = `AI profiles are tuned for ${S.ai_model}.`;

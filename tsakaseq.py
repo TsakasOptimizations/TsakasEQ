@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
@@ -84,12 +84,12 @@ def response_db(bands, f, fs=FS):
 HEADROOM = 6.0  # fixed preamp: volume stays put while dragging; boosts above +6 dB can clip (UI warns)
 
 
-def config_text(bands, on=True, outputs=None):
+def config_text(bands, on=True, outputs=None, headroom=HEADROOM):
     """outputs: endpoint GUIDs the EQ applies to (APO's Device command); None = every output."""
     lines = ["# TsakasEQ (written by the app, edits get overwritten)"]
     if outputs:
         lines.append("Device: " + "; ".join(outputs))
-    lines.append(f"Preamp: {-HEADROOM:.1f} dB")  # also when off: on/off stays a level-matched comparison
+    lines.append(f"Preamp: {-headroom:.1f} dB")  # also when off: on/off stays a level-matched comparison
     if on:
         lines += [f"Filter: ON {k} Fc {f:.0f} Hz Gain {g:.1f} dB Q {q:.2f}" for k, f, g, q in bands]
     return "\n".join(lines) + "\n"
@@ -306,6 +306,7 @@ def load_state():
     s["presets"] = {**{k: s["presets"][k] for k in BUILTIN}, **s["presets"]}  # built-ins first, in order
     s.setdefault("on", True)
     s.setdefault("outputs", None)
+    s.setdefault("auto_volume", False)
     if s["active"] not in s["presets"]:
         s["active"] = next(iter(s["presets"]))
     return s
@@ -316,13 +317,29 @@ def save_state(s):
     STATE.write_text(json.dumps(s, indent=1), encoding="utf-8")
 
 
-def write_eq(bands, on):
+headroom_now = HEADROOM  # dB the whole signal is lowered by right now
+
+
+def level_for(bands, on):
+    """Auto volume: lower only as much as this curve's biggest boost needs; otherwise the fixed 6 dB."""
+    if not (state and state.get("auto_volume")):
+        return HEADROOM
+    if not on:
+        return headroom_now  # EQ off keeps the on-level, so the switch stays a fair comparison
+    return math.ceil(max(0.0, max(response_db(bands, f) for f in FREQS)) * 10) / 10
+
+
+def write_eq(bands, on, settle=False):
+    """settle=True re-levels the volume (preset switch, Apply). Dragging never does, so volume stays put."""
+    global headroom_now
     cfg = apo_config_dir()
     if not cfg:
         return False
     with write_lock:
+        if settle or not (state and state.get("auto_volume")):
+            headroom_now = level_for(bands, on)
         outputs = state.get("outputs") if state else None
-        (cfg / OUR_CONFIG).write_text(config_text(bands, on, outputs), encoding="utf-8")
+        (cfg / OUR_CONFIG).write_text(config_text(bands, on, outputs, headroom_now), encoding="utf-8")
     return True
 
 
@@ -458,7 +475,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/state":
             return self.send(200, {**state, "defaults": BUILTIN, "version": VERSION, "status": status(),
-                                   "startup": startup_enabled(), "can_startup": FROZEN})
+                                   "startup": startup_enabled(), "can_startup": FROZEN, "headroom": headroom_now})
         if self.path == "/api/update":
             try:
                 return self.send(200, check_update())
@@ -477,12 +494,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
         if self.path == "/api/live":  # what you hear while dragging, not saved
-            return self.send(200, {"ok": write_eq(body["bands"], body["on"])})
+            ok = write_eq(body["bands"], body["on"], settle=bool(body.get("settle")))
+            return self.send(200, {"ok": ok, "headroom": headroom_now})
         if self.path == "/api/save":  # Apply
             state.update(presets=body["presets"], active=body["active"], on=body["on"],
                          outputs=body.get("outputs") or None)
             save_state(state)
-            return self.send(200, {"ok": write_eq(state["presets"][state["active"]], state["on"])})
+            ok = write_eq(state["presets"][state["active"]], state["on"], settle=True)
+            return self.send(200, {"ok": ok, "headroom": headroom_now})
         if self.path == "/api/autoeq":
             try:
                 model, presets = ai_profiles(body["path"])
@@ -491,6 +510,10 @@ class Handler(BaseHTTPRequestHandler):
             state["ai_model"] = model
             save_state(state)
             return self.send(200, {"model": model, "presets": presets})
+        if self.path == "/api/autovolume":
+            state["auto_volume"] = bool(body["on"])
+            save_state(state)
+            return self.send(200, {"on": state["auto_volume"]})
         if self.path == "/api/startup":
             try:
                 set_startup(bool(body["on"]))
@@ -500,7 +523,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/setup":
             err = run_setup_elevated()
             if not err:
-                write_eq(state["presets"][state["active"]], state["on"])
+                write_eq(state["presets"][state["active"]], state["on"], settle=True)
             return self.send(200, {"error": err, "status": status()})
         if self.path == "/api/update":
             try:
@@ -515,7 +538,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def shutdown():
     if state:  # drop un-applied tweaks: what's applied is what plays while the app is closed
-        write_eq(state["presets"][state["active"]], state["on"])
+        write_eq(state["presets"][state["active"]], state["on"], settle=True)
     if browser and browser.poll() is None:
         browser.terminate()
     os._exit(0)
@@ -565,7 +588,7 @@ def main():
     if FROZEN and startup_enabled():
         set_startup(True)  # keep the entry pointing here if the exe was moved
     if status()["ready"]:
-        write_eq(state["presets"][state["active"]], state["on"])
+        write_eq(state["presets"][state["active"]], state["on"], settle=True)
     srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{srv.server_port}/?t={TOKEN}"
@@ -582,6 +605,14 @@ def main():
 
 
 def selftest():
+    global state
+    state = {"auto_volume": True}
+    assert level_for(BUILTIN["Flat"], True) == 0
+    fps_peak = max(response_db(BUILTIN["FPS Games"], f) for f in FREQS)
+    assert fps_peak <= level_for(BUILTIN["FPS Games"], True) < fps_peak + 0.11
+    assert level_for(BUILTIN["FPS Games"], False) == headroom_now  # off keeps the on-level
+    state = None
+    assert level_for(BUILTIN["FPS Games"], True) == HEADROOM
     assert abs(response_db([["PK", 1000, 6, 1]], 1000) - 6) < 0.01
     assert abs(response_db([["LSC", 100, -6, 0.7]], 20) + 6) < 0.3
     assert abs(response_db([["HSC", 5000, 4, 0.7]], 18000) - 4) < 0.5
