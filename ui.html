@@ -21,7 +21,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--text);
     font: 14px/1.5 var(--sans); user-select: none; -webkit-font-smoothing: antialiased; }
-  main { max-width: 1400px; margin: 0 auto; padding: 20px 28px 16px; display: flex; flex-direction: column; gap: 18px; min-height: 100dvh; }
+  main { max-width: 2200px; margin: 0 auto; padding: 20px 28px 16px; display: flex; flex-direction: column; gap: 18px; min-height: 100dvh; }
 
   header { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
   .logo { width: 34px; height: 34px; border-radius: 7px; background: var(--raised); border: 1px solid var(--edge); display: grid; place-items: center; }
@@ -65,20 +65,35 @@
   .pill.ghost { border-style: dashed; color: var(--dim); }
   .pill.ghost:hover { color: var(--text); }
   .pill input { all: unset; width: 130px; color: var(--text); }
+  .pill .x { display: inline-grid; place-items: center; width: 16px; height: 16px; margin: -3px -6px -3px 6px; border-radius: 3px;
+    font-size: 14px; line-height: 1; color: var(--dim); opacity: 0; transition: opacity .2s var(--ease), background .2s var(--ease), color .2s var(--ease); }
+  .pill:hover .x, .pill[aria-pressed="true"] .x, .pill:focus-visible .x { opacity: 1; }
+  .pill .x:hover { background: #3a2128; color: var(--err); }
+  #pills .pill.dragging .x { opacity: 0; }
+  .toast { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 6px;
+    background: var(--raised); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 6px 6px 14px; font-size: 13px;
+    box-shadow: 0 16px 40px -16px rgba(5, 8, 14, .9); animation: rise .3s var(--ease); }
+  .toast .btn.link { color: var(--accent); font-weight: 600; }
 
   /* presets: one connected strip */
   #pills { gap: 0; }
   #pills .pill { border-radius: 0; margin-left: -1px; }
   #pills .pill:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
-  #pills .pill:nth-last-child(2) { border-radius: 0 6px 6px 0; }
+  #pills .pill.end { border-radius: 0 6px 6px 0; }
+  #pills .pill.end:first-child { border-radius: 6px; }
   #pills .pill[aria-pressed="true"] { position: relative; z-index: 1; }
+  #pills .pill:not(.ghost) { cursor: grab; touch-action: none; }
+  #pills .pill.shifting { transition: transform .22s var(--ease); }
+  #pills .pill.dragging { position: relative; z-index: 3; cursor: grabbing; background: var(--raised); color: var(--text);
+    border-color: var(--accent); box-shadow: 0 10px 24px -8px rgba(5, 8, 14, .9); transition: none; }
+  #pills .pill.dragging.landing { transition: transform .18s var(--ease); }
   #pills .pill.ghost { border-radius: 6px; margin-left: 10px; }
 
   /* rail lists: full-width rows with a check box */
   .list { display: flex; flex-direction: column; gap: 6px; }
   .list .pill { display: grid; grid-template-columns: 14px 1fr; column-gap: 10px; text-align: left; padding: 9px 11px; }
   .list .pill::before { content: ""; grid-row: span 2; align-self: center; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #50555d; transition: background .25s var(--ease), border-color .25s var(--ease); }
-  .list .pill[aria-pressed="true"]::before { background: var(--accent); border-color: var(--accent); }
+  .list .pill[aria-pressed="true"]::before { background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6 9.6 3.6' fill='none' stroke='%230b1522' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat; border-color: var(--accent); }
   .list .pill[aria-pressed="true"] { box-shadow: none; border-color: var(--edge); }
   .list .pill span { grid-column: 2; display: block; color: var(--dim); font-size: 12px; margin: 2px 0 0; }
   .ai-results .pill::before { border-radius: 50%; }
@@ -87,25 +102,25 @@
   .card-head { display: flex; align-items: baseline; gap: 12px; margin: 0 6px 6px; }
   .card-head h2 { font: 600 16px/1.2 var(--sans); letter-spacing: -0.01em; margin: 0; }
   .card-head .hint { color: var(--dim); font-size: 12px; }
-  svg { display: block; width: 100%; height: 360px; touch-action: none; }
+  svg { display: block; width: 100%; height: clamp(320px, calc(100dvh - 300px), 1400px); touch-action: none; --k: 1; }
   svg text { font-family: var(--mono); }
   .grid { stroke: var(--line); stroke-width: 1; }
   .grid.zero { stroke: #383c43; }
-  .axis { fill: var(--dim); font-size: 10.5px; }
-  .region { fill: #6d727b; font-size: 10.5px; font-family: var(--sans); }
-  .curve { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; transition: stroke .3s var(--ease); }
+  .axis { fill: var(--dim); font-size: calc(10.5px * var(--k)); }
+  .region { fill: var(--dim); font-size: calc(10.5px * var(--k)); font-family: var(--sans); }
+  .curve { fill: none; stroke: var(--accent); stroke-width: calc(2.5px * var(--k)); stroke-linejoin: round; stroke-linecap: round; transition: stroke .3s var(--ease); }
   .off .curve { stroke: #484c53; }
   .area { transition: opacity .3s var(--ease); }
   .off .area { opacity: .15; }
   .node { cursor: ns-resize; outline: none; }
   .node circle.hit { fill: transparent; }
-  .node circle.dot { fill: var(--bg); stroke: #f2f3f5; stroke-width: 2.5; transition: r .25s var(--ease), fill .25s var(--ease); }
-  .node:hover circle.dot, .node.active circle.dot, .node:focus-visible circle.dot { r: 9; fill: #f2f3f5; }
+  .node circle.dot { fill: var(--bg); stroke: #f2f3f5; stroke-width: calc(2.5px * var(--k)); transition: r .25s var(--ease), fill .25s var(--ease); }
+  .node:hover circle.dot, .node.active circle.dot, .node:focus-visible circle.dot { r: calc(9px * var(--k)); fill: #f2f3f5; }
   .node:focus-visible circle.ring { stroke: var(--accent); }
   .node circle.ring { fill: none; stroke: transparent; stroke-width: 2; }
-  .flabel { fill: var(--sub); font-size: 10.5px; }
+  .flabel { fill: var(--sub); font-size: calc(10.5px * var(--k)); }
   .tip rect { fill: var(--raised); stroke: var(--edge); }
-  .tip text { fill: var(--text); font-size: 11.5px; }
+  .tip text { fill: var(--text); font-size: calc(11.5px * var(--k)); }
 
   .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .chip { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 7px; }
@@ -125,11 +140,17 @@
   .btn.link { background: none; color: var(--sub); padding: 8px 10px; }
   .btn.link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
   .btn.danger { color: var(--err); }
+  .btn.danger-outline { background: none; color: var(--err); border-color: #5a2a33; }
+  .btn.danger-outline:hover { background: #2a171b; border-color: var(--err); }
+  .btn.danger-solid { background: #b8404e; color: #fff; font-weight: 600; }
+  .btn.danger-solid:hover { background: #c54a58; }
+  .btn.soft { background: var(--raised); border-color: var(--edge); color: var(--text); padding: 8px 14px; font-size: 12.5px; }
+  .btn.soft:hover { border-color: #565b63; background: #252a30; }
 
   .field { display: flex; flex-direction: column; gap: 8px; }
   .field label { font-size: 12px; font-weight: 500; color: var(--sub); }
   .field input { width: 100%; border: 1px solid var(--edge); border-radius: 6px; padding: 9px 11px; background: var(--bg); color: var(--text); font: 13.5px var(--sans); user-select: text; transition: border-color .25s var(--ease); }
-  .field input::placeholder { color: #6d727b; }
+  .field input::placeholder { color: var(--dim); }
   .field input:focus { outline: none; border-color: var(--accent); }
   .field .btn { width: 100%; }
   .ai-results:not(:empty) { margin-top: 14px; }
@@ -188,7 +209,7 @@
         <span class="chip" id="chip">Applied</span>
         <span class="spacer"></span>
         <button class="btn link" id="restore">Restore default</button>
-        <button class="btn link danger" id="del">Delete preset</button>
+        <button class="btn danger-outline" id="del">Delete preset</button>
         <button class="btn secondary" id="revert">Revert</button>
         <button class="btn primary" id="apply">Apply</button>
       </div>
@@ -197,13 +218,13 @@
     <aside class="rail">
       <section class="rail-block rise" style="--i:2" hidden>
         <h3>Output</h3>
-        <p class="help">Devices that get the EQ.</p>
+        <p class="help">Tick devices that get the EQ.</p>
         <div class="list" id="outputs" role="group" aria-label="Output devices"></div>
       </section>
 
       <section class="rail-block rise" style="--i:3">
         <h3>Headphone profiles</h3>
-        <p class="help">Builds AI FPS, AI Music and AI Movies from your model's AutoEq lab measurement.</p>
+        <p class="help">Builds AI FPS, AI Music and AI Movies presets from your model's AutoEq lab measurement.</p>
         <form class="field" id="aiForm">
           <label for="aiQuery">Model</label>
           <input id="aiQuery" placeholder="Sony WH-1000XM5, HyperX Cloud II" autocomplete="off" maxlength="60">
@@ -222,9 +243,22 @@
     <span class="spacer"></span>
     <span class="msg" id="umsg"></span>
     <button class="btn primary" id="uinstall" hidden style="padding:7px 14px;font-size:12px">Update now</button>
-    <button class="btn link" id="ucheck">Check for updates</button>
+    <button class="btn soft" id="ucheck">Check for updates</button>
   </footer>
 </main>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button class="btn link" id="toastAction"></button></div>
+
+<div class="overlay" id="delPrompt" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="delTitle" aria-describedby="delText">
+    <h2 id="delTitle"></h2>
+    <p id="delText">Its EQ settings will be removed.</p>
+    <div class="modal-actions">
+      <button class="btn secondary" id="delCancel">Cancel</button>
+      <button class="btn danger-solid" id="delConfirm">Delete</button>
+    </div>
+  </div>
+</div>
 
 <div class="overlay" id="updatePrompt" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="updateTitle" aria-describedby="updateText">
@@ -257,7 +291,8 @@ const clone = x => JSON.parse(JSON.stringify(x));
 
 let S, applied, work;          // server state, last applied {presets,active,on}, working copy
 const svg = $('eq');
-const FS = 48000, PAD = { l: 44, r: 22, t: 30, b: 34 }, RANGE = 12;
+const FS = 48000, BASE_PAD = { l: 44, r: 22, t: 30, b: 34 }, RANGE = 12;
+let PAD = { ...BASE_PAD }, K = 1;  // K = zoom: everything in the graph grows with the window
 
 // ---- filter math (RBJ, matches Equalizer APO) ----
 function biquad(kind, f0, g, q) {
@@ -302,6 +337,9 @@ let curve, area, nodes = [], tip, drag = null;
 function build() {
   const r = svg.getBoundingClientRect();
   W = Math.max(400, r.width); H = r.height;
+  K = Math.max(1, Math.min(1.8, W / 760, H / 360));
+  svg.style.setProperty('--k', K);
+  PAD = Object.fromEntries(Object.entries(BASE_PAD).map(([k, v]) => [k, v * K]));
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = '';
   const defs = el('defs');
@@ -310,19 +348,19 @@ function build() {
   el('stop', { offset: '100%', 'stop-color': '#5c9be6', 'stop-opacity': 0 }, grad);
 
   for (const [lo, hi, name] of [[20, 80, 'sub'], [80, 300, 'bass'], [300, 1500, 'mids'], [1500, 6000, 'footsteps / vocals'], [6000, 20000, 'detail / direction']])
-    el('text', { x: (x(lo) + x(hi)) / 2, y: 14, 'text-anchor': 'middle', class: 'region' }).textContent = name;
+    el('text', { x: (x(lo) + x(hi)) / 2, y: 14 * K, 'text-anchor': 'middle', class: 'region' }).textContent = name;
   for (const db of [12, 6, 0, -6, -12]) {
     el('line', { x1: PAD.l, x2: W - PAD.r, y1: y(db), y2: y(db), class: 'grid' + (db ? '' : ' zero') });
-    el('text', { x: PAD.l - 10, y: y(db) + 4, 'text-anchor': 'end', class: 'axis' }).textContent = db > 0 ? `+${db}` : db;
+    el('text', { x: PAD.l - 10 * K, y: y(db) + 4 * K, 'text-anchor': 'end', class: 'axis' }).textContent = db > 0 ? `+${db}` : db;
   }
   area = el('path', { fill: 'url(#fill)', class: 'area' });
   curve = el('path', { class: 'curve' });
 
   nodes = bands().map((b, i) => {
     const g = el('g', { class: 'node', tabindex: 0, role: 'slider', 'aria-valuemin': -RANGE, 'aria-valuemax': RANGE });
-    el('circle', { r: 22, class: 'hit' }, g);
-    el('circle', { r: 14, class: 'ring' }, g);
-    el('circle', { r: 8, class: 'dot' }, g);
+    el('circle', { r: 22 * K, class: 'hit' }, g);
+    el('circle', { r: 14 * K, class: 'ring' }, g);
+    el('circle', { r: 8 * K, class: 'dot' }, g);
     const label = el('text', { 'text-anchor': 'middle', class: 'flabel' });
     const svgY = e => new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse()).y;
     let startDb, startGain;  // dots ride the wave, so drag by delta, not absolute position
@@ -348,8 +386,8 @@ function build() {
     return { g, label };
   });
   tip = el('g', { class: 'tip', 'pointer-events': 'none' });
-  el('rect', { rx: 6, height: 24 }, tip);
-  el('text', { y: 16 }, tip);
+  el('rect', { rx: 6, height: 24 * K }, tip);
+  el('text', { y: 16 * K }, tip);
   update();
 }
 
@@ -375,7 +413,7 @@ function update() {
     g.setAttribute('transform', `translate(${x(f)},${y(on ? respDb(bs, f) : 0)})`);
     g.setAttribute('aria-valuenow', gain);
     g.setAttribute('aria-label', `${fmtHz(f)} ${fmtDb(gain)}`);
-    label.setAttribute('x', x(f)); label.setAttribute('y', H - 10);
+    label.setAttribute('x', x(f)); label.setAttribute('y', H - 10 * K);
     label.textContent = fmtHz(f);
     if (drag === i || (drag === null && document.activeElement === g)) shown = i;
   });
@@ -383,10 +421,10 @@ function update() {
   if (shown !== null) {
     const [, f, gain] = bs[shown], t = tip.querySelector('text'), r = tip.querySelector('rect');
     t.textContent = `${fmtHz(f)}  ${fmtDb(gain)}`;
-    const w = t.getComputedTextLength() + 16;
-    r.setAttribute('width', w); t.setAttribute('x', 8);
+    const w = t.getComputedTextLength() + 16 * K;
+    r.setAttribute('width', w); t.setAttribute('x', 8 * K);
     const tx = Math.min(W - PAD.r - w, Math.max(PAD.l, x(f) - w / 2));
-    const ny = y(work.on ? respDb(bs, f) : 0), ty = ny > PAD.t + 40 ? ny - 40 : ny + 18;
+    const ny = y(work.on ? respDb(bs, f) : 0), ty = ny > PAD.t + 40 * K ? ny - 40 * K : ny + 18 * K;
     tip.setAttribute('transform', `translate(${tx},${ty})`);
   }
   refreshBar();
@@ -418,8 +456,8 @@ function refreshBar() {
   $('chip').classList.toggle('dirty', d);
   $('apply').disabled = $('revert').disabled = !d;
   $('restore').hidden = !builtin || JSON.stringify(bands()) === JSON.stringify(S.defaults[work.active]);
-  $('del').hidden = builtin;
   $('title').textContent = work.active;
+  $('del').hidden = Object.keys(work.presets).length < 2;  // keep at least one
 }
 
 function renderPills() {
@@ -427,11 +465,72 @@ function renderPills() {
   box.innerHTML = '';
   for (const name of Object.keys(work.presets)) {
     const b = document.createElement('button');
-    b.className = 'pill'; b.textContent = name;
+    b.className = 'pill'; b.textContent = name; b.dataset.name = name;
+    if (Object.keys(work.presets).length > 1) {
+      const x = document.createElement('span');
+      x.className = 'x'; x.textContent = '\u00d7'; x.title = `Delete ${name}`;
+      x.setAttribute('aria-hidden', 'true');  // keyboard: focus the preset and press Delete
+      x.onpointerdown = e => e.stopPropagation();  // never starts a drag
+      x.onclick = e => { e.stopPropagation(); deletePreset(name); };
+      b.append(x);
+    }
     b.setAttribute('aria-pressed', name === work.active);
-    b.onclick = () => select(name);
+    b.onclick = () => { if (justDragged) { justDragged = false; return; } select(name); };
+    b.title = 'Drag to reorder (Alt + arrows). Delete key removes it.';
+    b.onpointerdown = e => {
+      if (e.button !== 0) return;
+      const items = [...$('pills').querySelectorAll('.pill:not(.ghost)')];
+      const from = items.indexOf(b), x0 = e.clientX;
+      const rects = items.map(el => el.getBoundingClientRect());
+      const step = rects[from].width - 1;  // strip buttons overlap by 1px
+      let moved = false, to = from;
+      const move = ev => {
+        const dx = ev.clientX - x0;
+        if (!moved && Math.abs(dx) < 6) return;  // small wobble is still a click
+        if (!moved) { moved = true; b.classList.add('dragging'); items.forEach(el => el !== b && el.classList.add('shifting')); }
+        const lo = rects[0].left - rects[from].left, hi = rects.at(-1).right - rects[from].right;
+        const x = Math.max(lo, Math.min(hi, dx));  // stay inside the strip
+        b.style.transform = `translateX(${x}px)`;
+        const mid = rects[from].left + rects[from].width / 2 + x;
+        // new slot = how many other buttons now sit left of the dragged one's centre
+        to = rects.reduce((n, r, i) => n + (i !== from && r.left + r.width / 2 < mid ? 1 : 0), 0);
+        items.forEach((el, i) => {
+          if (el === b) return;
+          const shift = i > from && i <= to ? -step : i < from && i >= to ? step : 0;
+          el.style.transform = shift ? `translateX(${shift}px)` : '';
+        });
+      };
+      const up = () => {
+        removeEventListener('pointermove', move);
+        removeEventListener('pointerup', up);
+        if (!moved) return;
+        justDragged = true;
+        // glide into the gap, then commit the new order
+        let land = 0;
+        for (let i = Math.min(from, to); i <= Math.max(from, to); i++) if (i !== from) land += rects[i].width - 1;
+        b.classList.add('landing');
+        b.style.transform = `translateX(${to > from ? land : -land}px)`;
+        setTimeout(() => {
+          const names = Object.keys(work.presets);
+          names.splice(to, 0, names.splice(from, 1)[0]);
+          to === from ? renderPills() : reorder(names);
+        }, 180);
+      };
+      addEventListener('pointermove', move);
+      addEventListener('pointerup', up);
+    };
+    b.onkeydown = e => {
+      if (e.key === 'Delete') { e.preventDefault(); return deletePreset(name); }
+      if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      e.preventDefault();
+      const names = Object.keys(work.presets), i = names.indexOf(name), j = i + (e.key === 'ArrowRight' ? 1 : -1);
+      if (j < 0 || j >= names.length) return;
+      [names[i], names[j]] = [names[j], names[i]];
+      reorder(names, name);
+    };
     box.appendChild(b);
   }
+  [...box.querySelectorAll('.pill:not(.ghost)')].at(-1)?.classList.add('end');
   const add = document.createElement('button');
   add.className = 'pill ghost'; add.textContent = '+ Create new';
   add.onclick = () => {
@@ -453,6 +552,18 @@ function renderPills() {
   box.appendChild(add);
 }
 
+// ---- preset order: saved straight away (like the output ticks), unapplied edits stay as they are ----
+let justDragged = false;
+const ordered = (obj, names) => Object.fromEntries(names.filter(n => n in obj).map(n => [n, obj[n]]));
+async function reorder(names, focusName) {
+  work.presets = ordered(work.presets, names);
+  applied.presets = ordered(applied.presets, names);
+  renderPills();
+  if (focusName) [...$('pills').children].find(b => b.dataset.name === focusName)?.focus();
+  await api('/api/save', applied);
+  pushLive(true);  // saving plays the applied sound; put back what's on screen
+}
+
 function select(name) {
   work.active = name;
   renderPills(); build(); pushLive(true);
@@ -467,19 +578,47 @@ async function save() {
 $('apply').onclick = save;
 $('revert').onclick = () => { work = clone(applied); renderPills(); build(); pushLive(true); };
 $('restore').onclick = () => { work.presets[work.active] = clone(S.defaults[work.active]); build(); pushLive(true); };
-let delArmed = null;
-$('del').onclick = async () => {
-  if (!delArmed) {
-    $('del').textContent = 'Click again to delete';
-    delArmed = setTimeout(() => { delArmed = null; $('del').textContent = 'Delete preset'; }, 3000);
-    return;
-  }
-  clearTimeout(delArmed); delArmed = null; $('del').textContent = 'Delete preset';
-  delete work.presets[work.active]; delete applied.presets[work.active];
-  work.active = Object.keys(work.presets)[0];
-  if (!(applied.active in applied.presets)) applied.active = work.active;
-  await save(); pushLive(true);
+// ---- delete: the bar button asks first; the x on a preset deletes at once. Both offer Undo ----
+$('del').onclick = () => {
+  $('delTitle').textContent = `Delete "${work.active}"?`;
+  $('delPrompt').hidden = false;
+  $('delCancel').focus();
 };
+$('delCancel').onclick = () => { $('delPrompt').hidden = true; $('del').focus(); };
+$('delConfirm').onclick = () => { $('delPrompt').hidden = true; deletePreset(work.active); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('delPrompt').hidden) $('delCancel').click(); });
+let undoTimer = null;
+function toast(text, action, onAction) {
+  clearTimeout(undoTimer);
+  $('toastText').textContent = text;
+  $('toastAction').textContent = action;
+  $('toastAction').onclick = () => { $('toast').hidden = true; onAction(); };
+  $('toast').hidden = false;
+  undoTimer = setTimeout(() => $('toast').hidden = true, 6000);
+}
+async function deletePreset(name) {
+  const names = Object.keys(work.presets);
+  if (names.length < 2) return;  // keep at least one
+  const at = names.indexOf(name), was = { work: work.presets[name], applied: applied.presets[name] };
+  const wasActive = work.active === name, wasApplied = applied.active === name;
+  delete work.presets[name];
+  delete applied.presets[name];
+  if (wasActive) work.active = Object.keys(work.presets)[Math.max(0, at - 1)];
+  if (wasApplied) applied.active = work.active;
+  renderPills(); build();
+  await api('/api/save', applied);  // saves the deletion only; unapplied edits elsewhere stay unapplied
+  pushLive(true);
+  toast(`Deleted "${name}"`, 'Undo', async () => {
+    const insert = (obj, val) => Object.fromEntries([...Object.entries(obj).slice(0, at), [name, val], ...Object.entries(obj).slice(at)]);
+    work.presets = insert(work.presets, was.work);
+    applied.presets = insert(applied.presets, was.applied ?? was.work);
+    if (wasActive) work.active = name;
+    if (wasApplied) applied.active = name;
+    renderPills(); build();
+    await api('/api/save', applied);
+    pushLive(true);
+  });
+}
 $('autovol').onclick = async () => {
   const r = await api('/api/autovolume', { on: !S.auto_volume });
   S.auto_volume = r.on;
@@ -585,9 +724,9 @@ async function makeProfiles(m) {
     work.presets[name] = clone(bs);
     applied.presets[name] = clone(bs);
   }
-  work.active = 'AI FPS';
+  work.active = Object.keys(r.presets)[0];
   await save(); pushLive(true);
-  $('aiMsg').textContent = `AI FPS, AI Music and AI Movies are now tuned for ${r.model}.`;
+  $('aiMsg').textContent = `Added AI FPS, AI Music and AI Movies presets for ${r.model}.`;
 }
 
 // ---- updates ----
@@ -640,7 +779,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('update
   headroom = S.headroom;
   $('startup').disabled = !S.can_startup;
   if (!S.can_startup) $('startup').title = 'Only available in TsakasEQ.exe';
-  if (S.ai_model && 'AI FPS' in S.presets) $('aiMsg').textContent = `AI profiles are tuned for ${S.ai_model}.`;
   $('power').setAttribute('aria-checked', work.on);
   showStatus(S.status);
   renderPills(); build();

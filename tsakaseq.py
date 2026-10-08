@@ -25,7 +25,7 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
@@ -295,7 +295,10 @@ def load_state():
         s = {}
     s.setdefault("presets", {})
     freqs = lambda bs: [b[1] for b in bs]
+    s.setdefault("deleted", [])  # built-ins the user deleted stay deleted
     for k, v in BUILTIN.items():  # add missing built-ins; reset ones saved on an older band layout
+        if k in s["deleted"]:
+            continue
         if k not in s["presets"] or freqs(s["presets"][k]) != freqs(v):
             s["presets"][k] = [b[:] for b in v]
     s.setdefault("active", "FPS Games")
@@ -303,7 +306,6 @@ def load_state():
         s["presets"].pop(old, None)
         if s["active"] == old:
             s["active"] = new
-    s["presets"] = {**{k: s["presets"][k] for k in BUILTIN}, **s["presets"]}  # built-ins first, in order
     s.setdefault("on", True)
     s.setdefault("outputs", None)
     s.setdefault("auto_volume", False)
@@ -438,7 +440,8 @@ def ai_profiles(path):
     # measurements above ~10 kHz are rig resonances more than headphone, so trust that band less
     limits = (6, 6, 6, 6, 6, 3)
     correction = [max(-l, min(l, c)) for c, l in zip(fit_six([at(f) for _, f, _ in BANDS]), limits)]
-    return match[0], {ai: preset(*tame([c + b[2] for c, b in zip(correction, BUILTIN[base])]))
+    # named per headset, e.g. "AI FPS (Kiwi Ears Astral)", so several headsets can live side by side
+    return match[0], {f"{ai} ({match[0]})": preset(*tame([c + b[2] for c, b in zip(correction, BUILTIN[base])]))
                       for ai, base in AI_PRESETS.items()}
 
 
@@ -497,6 +500,7 @@ class Handler(BaseHTTPRequestHandler):
             ok = write_eq(body["bands"], body["on"], settle=bool(body.get("settle")))
             return self.send(200, {"ok": ok, "headroom": headroom_now})
         if self.path == "/api/save":  # Apply
+            state["deleted"] = [k for k in BUILTIN if k not in body["presets"]]
             state.update(presets=body["presets"], active=body["active"], on=body["on"],
                          outputs=body.get("outputs") or None)
             save_state(state)

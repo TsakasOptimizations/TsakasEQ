@@ -11,5 +11,7 @@ if (-not (Test-Path $apo)) {
 if ((Get-FileHash $apo -Algorithm SHA256).Hash -ne $sha) { throw "Equalizer APO installer checksum mismatch" }
 
 python tsakaseq.py --selftest
+if ($LASTEXITCODE) { throw "Self-test failed" }
 python -m PyInstaller --noconfirm --onefile --noconsole --name TsakasEQ --icon icon.ico `
     --add-data "ui.html;." --add-data "$apo;vendor" tsakaseq.py
+if ($LASTEXITCODE) { throw "PyInstaller failed" }
