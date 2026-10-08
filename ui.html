@@ -19,9 +19,9 @@
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--text);
+  html, body { margin: 0; min-height: calc(100dvh / var(--z, 1)); background: var(--bg); color: var(--text);
     font: 14px/1.5 var(--sans); user-select: none; -webkit-font-smoothing: antialiased; }
-  main { max-width: 2200px; margin: 0 auto; padding: 20px 28px 16px; display: flex; flex-direction: column; gap: 18px; min-height: 100dvh; }
+  main { max-width: 2200px; margin: 0 auto; padding: 20px 28px 16px; display: flex; flex-direction: column; gap: 18px; min-height: calc(100dvh / var(--z, 1)); }
 
   header { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
   .logo { width: 34px; height: 34px; border-radius: 7px; background: var(--raised); border: 1px solid var(--edge); display: grid; place-items: center; }
@@ -66,8 +66,7 @@
   .pill.ghost:hover { color: var(--text); }
   .pill input { all: unset; width: 130px; color: var(--text); }
   .pill .x { display: inline-grid; place-items: center; width: 16px; height: 16px; margin: -3px -6px -3px 6px; border-radius: 3px;
-    font-size: 14px; line-height: 1; color: var(--dim); opacity: 0; transition: opacity .2s var(--ease), background .2s var(--ease), color .2s var(--ease); }
-  .pill:hover .x, .pill[aria-pressed="true"] .x, .pill:focus-visible .x { opacity: 1; }
+    font-size: 14px; line-height: 1; color: var(--dim); opacity: 1; transition: opacity .2s var(--ease), background .2s var(--ease), color .2s var(--ease); }
   .pill .x:hover { background: #3a2128; color: var(--err); }
   #pills .pill.dragging .x { opacity: 0; }
   .toast { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 6px;
@@ -102,12 +101,12 @@
   .card-head { display: flex; align-items: baseline; gap: 12px; margin: 0 6px 6px; }
   .card-head h2 { font: 600 16px/1.2 var(--sans); letter-spacing: -0.01em; margin: 0; }
   .card-head .hint { color: var(--dim); font-size: 12px; }
-  svg { display: block; width: 100%; height: clamp(320px, calc(100dvh - 300px), 1400px); touch-action: none; --k: 1; }
+  svg { display: block; width: 100%; height: clamp(320px, calc(300px + (100dvh / var(--z, 1) - 600px) * 0.25), 520px);  /* grows at a quarter of the window rate */ touch-action: none; --k: 1; }
   svg text { font-family: var(--mono); }
   .grid { stroke: var(--line); stroke-width: 1; }
   .grid.zero { stroke: #383c43; }
-  .axis { fill: var(--dim); font-size: calc(10.5px * var(--k)); }
-  .region { fill: var(--dim); font-size: calc(10.5px * var(--k)); font-family: var(--sans); }
+  .axis { fill: var(--dim); font-size: calc(12.5px * var(--k)); }
+  .region { fill: var(--dim); font-size: calc(12.5px * var(--k)); font-family: var(--sans); }
   .curve { fill: none; stroke: var(--accent); stroke-width: calc(2.5px * var(--k)); stroke-linejoin: round; stroke-linecap: round; transition: stroke .3s var(--ease); }
   .off .curve { stroke: #484c53; }
   .area { transition: opacity .3s var(--ease); }
@@ -118,9 +117,9 @@
   .node:hover circle.dot, .node.active circle.dot, .node:focus-visible circle.dot { r: calc(9px * var(--k)); fill: #f2f3f5; }
   .node:focus-visible circle.ring { stroke: var(--accent); }
   .node circle.ring { fill: none; stroke: transparent; stroke-width: 2; }
-  .flabel { fill: var(--sub); font-size: calc(10.5px * var(--k)); }
+  .flabel { fill: var(--sub); font-size: calc(12.5px * var(--k)); }
   .tip rect { fill: var(--raised); stroke: var(--edge); }
-  .tip text { fill: var(--text); font-size: calc(11.5px * var(--k)); }
+  .tip text { fill: var(--text); font-size: calc(13px * var(--k)); }
 
   .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .chip { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 7px; }
@@ -291,7 +290,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 
 let S, applied, work;          // server state, last applied {presets,active,on}, working copy
 const svg = $('eq');
-const FS = 48000, BASE_PAD = { l: 44, r: 22, t: 30, b: 34 }, RANGE = 12;
+const FS = 48000, BASE_PAD = { l: 50, r: 22, t: 34, b: 38 }, RANGE = 12;
 let PAD = { ...BASE_PAD }, K = 1;  // K = zoom: everything in the graph grows with the window
 
 // ---- filter math (RBJ, matches Equalizer APO) ----
@@ -337,7 +336,7 @@ let curve, area, nodes = [], tip, drag = null;
 function build() {
   const r = svg.getBoundingClientRect();
   W = Math.max(400, r.width); H = r.height;
-  K = Math.max(1, Math.min(1.8, W / 760, H / 360));
+  K = 1;  // the whole page zooms now (fitZoom), so the graph doesn't scale on its own
   svg.style.setProperty('--k', K);
   PAD = Object.fromEntries(Object.entries(BASE_PAD).map(([k, v]) => [k, v * K]));
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -348,7 +347,7 @@ function build() {
   el('stop', { offset: '100%', 'stop-color': '#5c9be6', 'stop-opacity': 0 }, grad);
 
   for (const [lo, hi, name] of [[20, 80, 'sub'], [80, 300, 'bass'], [300, 1500, 'mids'], [1500, 6000, 'footsteps / vocals'], [6000, 20000, 'detail / direction']])
-    el('text', { x: (x(lo) + x(hi)) / 2, y: 14 * K, 'text-anchor': 'middle', class: 'region' }).textContent = name;
+    el('text', { x: (x(lo) + x(hi)) / 2, y: 16 * K, 'text-anchor': 'middle', class: 'region' }).textContent = name;
   for (const db of [12, 6, 0, -6, -12]) {
     el('line', { x1: PAD.l, x2: W - PAD.r, y1: y(db), y2: y(db), class: 'grid' + (db ? '' : ' zero') });
     el('text', { x: PAD.l - 10 * K, y: y(db) + 4 * K, 'text-anchor': 'end', class: 'axis' }).textContent = db > 0 ? `+${db}` : db;
@@ -386,8 +385,8 @@ function build() {
     return { g, label };
   });
   tip = el('g', { class: 'tip', 'pointer-events': 'none' });
-  el('rect', { rx: 6, height: 24 * K }, tip);
-  el('text', { y: 16 * K }, tip);
+  el('rect', { rx: 6, height: 27 * K }, tip);
+  el('text', { y: 18 * K }, tip);
   update();
 }
 
@@ -413,7 +412,7 @@ function update() {
     g.setAttribute('transform', `translate(${x(f)},${y(on ? respDb(bs, f) : 0)})`);
     g.setAttribute('aria-valuenow', gain);
     g.setAttribute('aria-label', `${fmtHz(f)} ${fmtDb(gain)}`);
-    label.setAttribute('x', x(f)); label.setAttribute('y', H - 10 * K);
+    label.setAttribute('x', x(f)); label.setAttribute('y', H - 12 * K);
     label.textContent = fmtHz(f);
     if (drag === i || (drag === null && document.activeElement === g)) shown = i;
   });
@@ -767,6 +766,16 @@ $('updateNow').onclick = async () => {
   }
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('updatePrompt').hidden) $('updateLater').click(); });
+
+// ---- whole-app zoom: text, buttons and graph grow together with the window ----
+function fitZoom() {
+  const grow = Math.max(1, Math.min(innerWidth / 1120, innerHeight / 860));  // 1120x860 = normal size
+  const z = Math.min(1.35, 1 + (grow - 1) * 0.5);  // follow the window gently, not 1:1
+  document.documentElement.style.zoom = z;
+  document.documentElement.style.setProperty('--z', z);
+}
+addEventListener('resize', fitZoom);
+fitZoom();
 
 // ---- boot ----
 (async () => {
