@@ -10,8 +10,20 @@ if (-not (Test-Path $apo)) {
 }
 if ((Get-FileHash $apo -Algorithm SHA256).Hash -ne $sha) { throw "Equalizer APO installer checksum mismatch" }
 
+# Loud mode's safety clipper: Airwindows ClipOnly2 (MIT), from the official 64-bit Windows VST2 bundle
+$clip = "vendor\ClipOnly264.dll"
+if (-not (Test-Path $clip)) {
+    $zip = "$env:TEMP\WinVST64s.zip"
+    Invoke-WebRequest "https://www.airwindows.com/wp-content/uploads/WinVST64s.zip" -OutFile $zip
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $z = [IO.Compression.ZipFile]::OpenRead($zip)
+    [IO.Compression.ZipFileExtensions]::ExtractToFile($z.GetEntry("WinVST64s/ClipOnly264.dll"), "$PWD\$clip", $true)
+    $z.Dispose(); Remove-Item $zip
+}
+if ((Get-FileHash $clip -Algorithm SHA256).Hash -ne "0b18ba1e0e0d53a640126b317d7abb2cc308c08af69b7d4a54345e604c18fb22") { throw "ClipOnly2 checksum mismatch" }
+
 python tsakaseq.py --selftest
 if ($LASTEXITCODE) { throw "Self-test failed" }
 python -m PyInstaller --noconfirm --onefile --noconsole --name TsakasEQ --icon icon.ico `
-    --add-data "ui.html;." --add-data "$apo;vendor" tsakaseq.py
+    --add-data "ui.html;." --add-data "$apo;vendor" --add-data "$clip;vendor" tsakaseq.py
 if ($LASTEXITCODE) { throw "PyInstaller failed" }

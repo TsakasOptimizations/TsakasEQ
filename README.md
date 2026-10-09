@@ -6,6 +6,7 @@ System-wide EQ for Windows, for any headphones, IEMs or speakers. Works in every
 - **Apply** keeps it; closing without Apply goes back to the last applied sound
 - Presets: **FPS Games** (footsteps/utility/direction), **Music**, **Movies**, **Flat**, plus your own
 - **AI headphone profiles**: type your headphones/IEMs, TsakasEQ finds them in 8,800+ lab measurements ([AutoEq](https://github.com/jaakkopasanen/AutoEq)), corrects their sound and builds **AI FPS**, **AI Music** and **AI Movies** EQ presets.
+- **Loud mode**: boosts get louder instead of the volume going down, with a safety clipper so peaks don't distort
 - EQ keeps working with the app closed
 - Built-in update check (GitHub releases)
 
@@ -23,3 +24,5 @@ Settings → Apps → uninstall **Equalizer APO** (restores your audio devices),
 ## Credits
 
 Audio engine: [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) by Jonas Thedering (GPL-2.0), bundled unmodified. Source: https://sourceforge.net/p/equalizerapo/code/
+
+Loud mode clipper: [Airwindows](https://www.airwindows.com/) ClipOnly2 by Chris Johnson (MIT License), bundled unmodified.

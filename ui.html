@@ -208,6 +208,7 @@
         <span class="chip" id="chip">Applied</span>
         <span class="spacer"></span>
         <button class="btn link" id="restore">Restore default</button>
+        <button class="btn link" id="rename">Rename</button>
         <button class="btn danger-outline" id="del">Delete preset</button>
         <button class="btn secondary" id="revert">Revert</button>
         <button class="btn primary" id="apply">Apply</button>
@@ -238,6 +239,7 @@
   <footer>
     <span id="ver"></span>
     <button class="switch small" id="autovol" role="switch" aria-checked="false" title="Lower the volume only as much as the preset needs, instead of a fixed 6 dB"><span class="track"><span class="knob"></span></span><span>Auto volume</span></button>
+    <button class="switch small" id="loud" role="switch" aria-checked="false" title="Boosts get louder instead of the volume going down; a safety clipper stops loud peaks from distorting"><span class="track"><span class="knob"></span></span><span>Loud mode</span></button>
     <button class="switch small" id="startup" role="switch" aria-checked="false"><span class="track"><span class="knob"></span></span><span>Open at startup</span></button>
     <span class="spacer"></span>
     <span class="msg" id="umsg"></span>
@@ -398,7 +400,7 @@ function update() {
     peak = Math.max(peak, db);
     pts.push(`${x(f).toFixed(1)},${y(db).toFixed(1)}`);
   }
-  $('clip').hidden = peak <= headroom + 0.05;
+  $('clip').hidden = S.loud || peak <= headroom + 0.05;  // Loud mode's clipper handles the overs
   $('clip').textContent = S.auto_volume
     ? `Boost +${peak.toFixed(1)} dB is over the current level (+${headroom}): press Apply to re-level`
     : `Boost +${peak.toFixed(1)} dB is over +${headroom} dB: loud sounds may distort`;
@@ -475,7 +477,8 @@ function renderPills() {
     }
     b.setAttribute('aria-pressed', name === work.active);
     b.onclick = () => { if (justDragged) { justDragged = false; return; } select(name); };
-    b.title = 'Drag to reorder (Alt + arrows). Delete key removes it.';
+    b.title = 'Drag to reorder (Alt + arrows). Double-click or F2 to rename. Delete key removes it.';
+    b.ondblclick = () => startRename(name);
     b.onpointerdown = e => {
       if (e.button !== 0) return;
       const items = [...$('pills').querySelectorAll('.pill:not(.ghost)')];
@@ -520,6 +523,7 @@ function renderPills() {
     };
     b.onkeydown = e => {
       if (e.key === 'Delete') { e.preventDefault(); return deletePreset(name); }
+      if (e.key === 'F2') { e.preventDefault(); return startRename(name); }
       if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
       e.preventDefault();
       const names = Object.keys(work.presets), i = names.indexOf(name), j = i + (e.key === 'ArrowRight' ? 1 : -1);
@@ -550,6 +554,36 @@ function renderPills() {
   };
   box.appendChild(add);
 }
+
+// ---- rename: the preset's button turns into a text box; saved straight away, like reordering ----
+function startRename(name) {
+  const b = [...$('pills').children].find(el => el.dataset.name === name);
+  if (!b) return;
+  b.onpointerdown = b.onclick = b.ondblclick = b.onkeydown = null;
+  b.innerHTML = '<input maxlength="24" aria-label="New preset name">';
+  const inp = b.querySelector('input');
+  inp.value = name; inp.focus(); inp.select();
+  inp.onkeydown = e => {
+    if (e.key === 'Escape') return renderPills();
+    if (e.key !== 'Enter') return;
+    const to = inp.value.trim();
+    if (to === name) return renderPills();
+    if (!to || to in work.presets) return inp.select();
+    renamePreset(name, to);
+  };
+  inp.onblur = () => setTimeout(renderPills, 150);
+}
+async function renamePreset(from, to) {
+  const swap = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k === from ? to : k, v]));
+  work.presets = swap(work.presets);
+  applied.presets = swap(applied.presets);
+  if (work.active === from) work.active = to;
+  if (applied.active === from) applied.active = to;
+  renderPills(); build();
+  await api('/api/save', applied);  // saves the new name only; unapplied edits stay unapplied
+  pushLive(true);
+}
+$('rename').onclick = () => startRename(work.active);
 
 // ---- preset order: saved straight away (like the output ticks), unapplied edits stay as they are ----
 let justDragged = false;
@@ -622,6 +656,13 @@ $('autovol').onclick = async () => {
   const r = await api('/api/autovolume', { on: !S.auto_volume });
   S.auto_volume = r.on;
   $('autovol').setAttribute('aria-checked', r.on);
+  pushLive(true);
+};
+$('loud').onclick = async () => {
+  const r = await api('/api/loud', { on: !S.loud });
+  S.loud = r.on;
+  $('loud').setAttribute('aria-checked', r.on);
+  $('autovol').disabled = r.on;  // Loud mode doesn't lower the volume at all
   pushLive(true);
 };
 $('startup').onclick = async () => {
@@ -728,6 +769,16 @@ async function makeProfiles(m) {
   $('aiMsg').textContent = `Added AI FPS, AI Music and AI Movies presets for ${r.model}.`;
 }
 
+// ---- feel like an app, not a web page: no browser menu, dev tools, reload, print, find or page zoom ----
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
+  if (k === 'f12' || k === 'f5' || k === 'f3' || k === 'f7' || (k === 'f' && ctrl) ||
+      (ctrl && e.shiftKey && ['i', 'j', 'c', 'k'].includes(k)) ||
+      (ctrl && ['u', 'p', 's', 'r', 'g', 'o', '+', '-', '=', '0'].includes(k))) e.preventDefault();
+}, true);
+addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+
 // ---- updates ----
 
 $('ucheck').onclick = async () => {
@@ -785,6 +836,8 @@ fitZoom();
   $('ver').textContent = `TsakasEQ v${S.version}`;
   $('startup').setAttribute('aria-checked', S.startup);
   $('autovol').setAttribute('aria-checked', !!S.auto_volume);
+  $('loud').setAttribute('aria-checked', !!S.loud);
+  $('autovol').disabled = !!S.loud;
   headroom = S.headroom;
   $('startup').disabled = !S.can_startup;
   if (!S.can_startup) $('startup').title = 'Only available in TsakasEQ.exe';

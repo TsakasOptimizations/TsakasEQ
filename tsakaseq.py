@@ -12,6 +12,7 @@ import math
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,10 +26,11 @@ import winreg
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "2.7.0"
+VERSION = "2.8.0"
 REPO = "TsakasOptimizations/TsakasEQ"
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 APO_INSTALLER = BUNDLE / "vendor" / "EqualizerAPO-x64-1.4.2.exe"
+CLIPPER = BUNDLE / "vendor" / "ClipOnly264.dll"  # Airwindows ClipOnly2 (MIT): safety clipper for Loud mode, no settings
 DATA = Path(os.environ["APPDATA"]) / "TsakasEQ"
 STATE = DATA / "state.json"
 OUR_CONFIG = "tsakaseq.txt"
@@ -84,14 +86,17 @@ def response_db(bands, f, fs=FS):
 HEADROOM = 6.0  # fixed preamp: volume stays put while dragging; boosts above +6 dB can clip (UI warns)
 
 
-def config_text(bands, on=True, outputs=None, headroom=HEADROOM):
-    """outputs: endpoint GUIDs the EQ applies to (APO's Device command); None = every output."""
+def config_text(bands, on=True, outputs=None, headroom=HEADROOM, clipper=None):
+    """outputs: endpoint GUIDs the EQ applies to (APO's Device command); None = every output.
+    clipper: Loud mode's plugin path, catches peaks the boosts push over 0 dB."""
     lines = ["# TsakasEQ (written by the app, edits get overwritten)"]
     if outputs:
         lines.append("Device: " + "; ".join(outputs))
-    lines.append(f"Preamp: {-headroom:.1f} dB")  # also when off: on/off stays a level-matched comparison
+    lines.append(f"Preamp: {0 - headroom:.1f} dB")  # also when off: on/off stays a level-matched comparison
     if on:
         lines += [f"Filter: ON {k} Fc {f:.0f} Hz Gain {g:.1f} dB Q {q:.2f}" for k, f, g, q in bands]
+        if clipper:
+            lines.append(f'VSTPlugin: Library "{clipper}"')
     return "\n".join(lines) + "\n"
 
 
@@ -309,6 +314,7 @@ def load_state():
     s.setdefault("on", True)
     s.setdefault("outputs", None)
     s.setdefault("auto_volume", False)
+    s.setdefault("loud", False)
     if s["active"] not in s["presets"]:
         s["active"] = next(iter(s["presets"]))
     return s
@@ -331,6 +337,18 @@ def level_for(bands, on):
     return math.ceil(max(0.0, max(response_db(bands, f) for f in FREQS)) * 10) / 10
 
 
+def clipper_dll(cfg):
+    """Loud mode's clipper, copied next to the config (users may write there, so no admin). None if it can't be."""
+    dst = cfg / "TsakasEQ" / CLIPPER.name
+    try:
+        if not dst.exists():
+            dst.parent.mkdir(exist_ok=True)
+            shutil.copyfile(CLIPPER, dst)
+        return dst
+    except OSError:
+        return None
+
+
 def write_eq(bands, on, settle=False):
     """settle=True re-levels the volume (preset switch, Apply). Dragging never does, so volume stays put."""
     global headroom_now
@@ -338,10 +356,13 @@ def write_eq(bands, on, settle=False):
     if not cfg:
         return False
     with write_lock:
-        if settle or not (state and state.get("auto_volume")):
+        clipper = clipper_dll(cfg) if state and state.get("loud") else None  # no clipper = normal volume cut
+        if clipper:
+            headroom_now = 0.0  # Loud mode: boosts really get louder, the clipper keeps peaks from distorting
+        elif settle or not (state and state.get("auto_volume")):
             headroom_now = level_for(bands, on)
         outputs = state.get("outputs") if state else None
-        (cfg / OUR_CONFIG).write_text(config_text(bands, on, outputs, headroom_now), encoding="utf-8")
+        (cfg / OUR_CONFIG).write_text(config_text(bands, on, outputs, headroom_now, clipper), encoding="utf-8")
     return True
 
 
@@ -518,6 +539,10 @@ class Handler(BaseHTTPRequestHandler):
             state["auto_volume"] = bool(body["on"])
             save_state(state)
             return self.send(200, {"on": state["auto_volume"]})
+        if self.path == "/api/loud":
+            state["loud"] = bool(body["on"])
+            save_state(state)
+            return self.send(200, {"on": state["loud"]})
         if self.path == "/api/startup":
             try:
                 set_startup(bool(body["on"]))
@@ -625,7 +650,11 @@ def selftest():
     assert "Preamp: -6.0 dB" in t and "Filter: ON PK Fc 1000 Hz Gain 6.0 dB Q 1.00" in t, t
     off = config_text([["PK", 1000, 6, 1]], on=False)
     assert "Filter" not in off and "Preamp: -6.0 dB" in off
-    assert "Device" not in t
+    assert "Device" not in t and "VSTPlugin" not in t
+    loud = config_text([["PK", 1000, 6, 1]], headroom=0, clipper=Path("C:/x/ClipOnly264.dll"))
+    assert "Preamp: 0.0 dB" in loud, loud
+    assert loud.rstrip().endswith(r'VSTPlugin: Library "C:\x\ClipOnly264.dll"'), loud
+    assert "VSTPlugin" not in config_text([["PK", 1000, 6, 1]], on=False, clipper=Path("C:/x/c.dll"))
     assert "Device: {a}; {b}\n" in config_text([["PK", 1000, 6, 1]], outputs=["{a}", "{b}"])
     assert vtuple("v1.10.0") > vtuple("1.9.3")
     assert all(abs(g) < 1e-6 for g in fit_six([0] * 6))
